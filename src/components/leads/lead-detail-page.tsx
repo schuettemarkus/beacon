@@ -1,12 +1,13 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Mail,
   Clock,
   Archive,
+  ArchiveX,
   Globe,
   MapPin,
   Users,
@@ -15,6 +16,10 @@ import {
   Cpu,
   Activity,
   ArrowLeft,
+  ArrowRight,
+  Eye,
+  MessageSquare,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -26,6 +31,7 @@ import { ContactCard } from "@/components/leads/contact-card";
 import { SignalItem } from "@/components/leads/signal-item";
 import { EmailPreview } from "@/components/leads/email-preview";
 import { ThreatSurface } from "@/components/leads/threat-surface";
+import { useLeadActions } from "@/hooks/use-lead-actions";
 
 function fitScoreColor(score: number) {
   if (score >= 80) return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
@@ -45,6 +51,10 @@ export default function LeadDetailPage() {
     },
     enabled: !!id,
   });
+
+  const actions = useLeadActions(id, lead?.company || "");
+  const searchParams = useSearchParams();
+  const defaultTab = searchParams.get("tab") || "overview";
 
   if (isLoading) {
     return (
@@ -89,15 +99,15 @@ export default function LeadDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button size="sm" className="gap-1.5">
+          <Button size="sm" className="gap-1.5" onClick={actions.goToEmails}>
             <Mail className="h-3.5 w-3.5" />
             Email
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => actions.snooze(1)}>
             <Clock className="h-3.5 w-3.5" />
             Snooze
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => actions.archive()}>
             <Archive className="h-3.5 w-3.5" />
             Archive
           </Button>
@@ -105,7 +115,7 @@ export default function LeadDetailPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="overview">
+      <Tabs defaultValue={defaultTab}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="threat-surface">Threat Surface</TabsTrigger>
@@ -202,7 +212,7 @@ export default function LeadDetailPage() {
                       {lead.emails
                         ?.filter((e: any) => e.variant === variant)
                         .map((email: any) => (
-                          <EmailPreview key={email.id} email={email} />
+                          <EmailPreview key={email.id} email={email} leadId={id} />
                         ))}
                       {(!lead.emails ||
                         lead.emails.filter((e: any) => e.variant === variant)
@@ -222,7 +232,69 @@ export default function LeadDetailPage() {
         {/* Activity */}
         <TabsContent value="activity">
           <div className="space-y-4 pt-4">
-            <p className="text-sm text-muted-foreground">No activity yet.</p>
+            {lead.activities && lead.activities.length > 0 ? (
+              <div className="relative space-y-4">
+                {lead.activities
+                  .sort(
+                    (a: any, b: any) =>
+                      new Date(b.createdAt).getTime() -
+                      new Date(a.createdAt).getTime()
+                  )
+                  .map((activity: any) => {
+                    const iconMap: Record<string, any> = {
+                      snoozed: Clock,
+                      archived: Archive,
+                      unarchived: ArchiveX,
+                      email_sent: Mail,
+                      email_regenerated: Zap,
+                      pipeline_moved: ArrowRight,
+                      viewed: Eye,
+                      note: MessageSquare,
+                    };
+                    const IconComponent = iconMap[activity.kind] || Activity;
+                    return (
+                      <div
+                        key={activity.id}
+                        className="flex items-start gap-3 rounded-md border p-3"
+                      >
+                        <div className="rounded-md bg-muted p-2">
+                          <IconComponent className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm font-medium capitalize">
+                            {activity.kind.replace(/_/g, " ")}
+                          </p>
+                          {activity.payload &&
+                            Object.keys(activity.payload).length > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                {Object.entries(activity.payload)
+                                  .map(
+                                    ([key, val]) =>
+                                      `${key}: ${val}`
+                                  )
+                                  .join(" · ")}
+                              </p>
+                            )}
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(activity.createdAt).toLocaleDateString(
+                              undefined,
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              }
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No activity yet.</p>
+            )}
           </div>
         </TabsContent>
       </Tabs>

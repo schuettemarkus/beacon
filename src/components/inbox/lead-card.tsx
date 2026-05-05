@@ -11,6 +11,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useLeadActions } from "@/hooks/use-lead-actions";
 
 export interface Lead {
   id: string;
@@ -60,6 +61,7 @@ interface LeadCardProps {
 
 export function LeadCard({ lead, index = 0 }: LeadCardProps) {
   const router = useRouter();
+  const actions = useLeadActions(lead.id, lead.company);
 
   const handleClick = () => {
     router.push(`/leads/${lead.id}`);
@@ -67,8 +69,20 @@ export function LeadCard({ lead, index = 0 }: LeadCardProps) {
 
   const handleAction = (e: React.MouseEvent, action: string) => {
     e.stopPropagation();
-    // Action handlers would be implemented with mutations
-    console.log(action, lead.id);
+    switch (action) {
+      case "snooze":
+        actions.snooze(1);
+        break;
+      case "archive":
+        actions.archive();
+        break;
+      case "email":
+        actions.goToEmails();
+        break;
+      case "open":
+        actions.goToLead();
+        break;
+    }
   };
 
   return (
