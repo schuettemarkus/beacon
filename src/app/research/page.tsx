@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
-import { researchCompany, type CompanyResearchPayload } from "@/services/company-research";
+import type { CompanyResearchPayload } from "@/services/company-research";
 import { ResearchResults } from "@/components/research/research-results";
 import { ResearchSkeleton } from "@/components/research/research-skeleton";
 import { CopilotChat } from "@/components/research/copilot-chat";
@@ -37,7 +37,13 @@ export default function ResearchPage() {
 
   const research = useMutation({
     mutationFn: async (q: string): Promise<CompanyResearchPayload> => {
-      return researchCompany(q);
+      const res = await fetch("/api/research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q }),
+      });
+      if (!res.ok) throw new Error("Research failed");
+      return res.json();
     },
     onSuccess: () => {
       setRecentSearches(getRecentSearches());

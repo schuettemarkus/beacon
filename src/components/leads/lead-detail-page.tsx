@@ -1,9 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { getLeadById } from "@/lib/client-data";
 import {
   Mail,
   Clock,
@@ -36,7 +35,24 @@ function fitScoreColor(score: number) {
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const lead = useMemo(() => (id ? getLeadById(id) : null), [id]);
+
+  const { data: lead, isLoading } = useQuery({
+    queryKey: ["lead", id],
+    queryFn: async () => {
+      const res = await fetch(`/api/leads/${id}`);
+      if (!res.ok) throw new Error("Failed to fetch lead");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   if (!lead) {
     return (

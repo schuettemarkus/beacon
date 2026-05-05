@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
-  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -17,38 +17,23 @@ import {
   Clock,
   Zap,
   Building2,
-  User,
   BarChart3,
   Settings,
 } from "lucide-react";
 
-const mockLeads = [
-  { name: "NovaPay", contact: "Sarah Chen" },
-  { name: "CloudVault", contact: "James Rodriguez" },
-  { name: "FinLeap", contact: "Priya Sharma" },
-  { name: "PayStream", contact: "Michael Park" },
-  { name: "LedgerBase", contact: "Anna Kowalski" },
-  { name: "TrustPay", contact: "David Liu" },
-  { name: "SecureOps", contact: "Rachel Kim" },
-  { name: "DataSync", contact: "Tom Fischer" },
-];
-
 const quickActions = [
-  { label: "Email all healthcare leads", icon: Mail },
-  { label: "Show leads not touched in 14 days", icon: Clock },
-  { label: "Run discovery for Series B fintech", icon: Zap },
-  { label: "View pipeline analytics", icon: BarChart3 },
-  { label: "Open settings", icon: Settings },
-];
-
-const recentActions = [
-  { label: "Searched: fintech leads", icon: Search },
-  { label: "Emailed Sarah Chen at NovaPay", icon: Mail },
-  { label: "Moved CloudVault to Demo Booked", icon: Building2 },
+  { label: "Email all healthcare leads", icon: Mail, href: "/discover" },
+  { label: "Show leads not touched in 14 days", icon: Clock, href: "/" },
+  { label: "Run discovery for Series B fintech", icon: Zap, href: "/discover" },
+  { label: "View pipeline analytics", icon: BarChart3, href: "/analytics" },
+  { label: "Open settings", icon: Settings, href: "/profile" },
 ];
 
 export function CommandBar() {
   const [open, setOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -62,57 +47,79 @@ export function CommandBar() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
+  const handleSearch = useCallback(async (value: string) => {
+    setSearchQuery(value);
+    if (value.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/leads/search?q=${encodeURIComponent(value)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data.slice(0, 6));
+      }
+    } catch {
+      // ignore search errors
+    }
+  }, []);
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <Command className="rounded-xl">
-        <CommandInput placeholder="Search leads, run actions..." />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
+      <CommandInput
+        placeholder="Search leads, run actions..."
+        value={searchQuery}
+        onValueChange={handleSearch}
+      />
+      <CommandList>
+        <CommandEmpty>No results found.</CommandEmpty>
 
+        {searchResults.length > 0 && (
           <CommandGroup heading="Leads">
-            {mockLeads.map((lead) => (
+            {searchResults.map((lead: any) => (
               <CommandItem
-                key={lead.name}
-                onSelect={() => setOpen(false)}
+                key={lead.id}
+                onSelect={() => {
+                  setOpen(false);
+                  router.push(`/leads/${lead.id}`);
+                }}
               >
-                <User className="mr-2 h-4 w-4 text-muted-foreground" />
-                <span>{lead.contact}</span>
+                <Building2 className="mr-2 h-4 w-4 text-muted-foreground" />
+                <span>{lead.company}</span>
                 <span className="ml-2 text-xs text-muted-foreground">
-                  {lead.name}
+                  {lead.industry}
                 </span>
               </CommandItem>
             ))}
           </CommandGroup>
+        )}
 
-          <CommandSeparator />
+        <CommandSeparator />
 
-          <CommandGroup heading="Quick Actions">
-            {quickActions.map((action) => (
-              <CommandItem
-                key={action.label}
-                onSelect={() => setOpen(false)}
-              >
-                <action.icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                <span>{action.label}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
+        <CommandGroup heading="Quick Actions">
+          {quickActions.map((action) => (
+            <CommandItem
+              key={action.label}
+              onSelect={() => {
+                setOpen(false);
+                router.push(action.href);
+              }}
+            >
+              <action.icon className="mr-2 h-4 w-4 text-muted-foreground" />
+              <span>{action.label}</span>
+            </CommandItem>
+          ))}
+        </CommandGroup>
 
-          <CommandSeparator />
+        <CommandSeparator />
 
-          <CommandGroup heading="Recent">
-            {recentActions.map((action) => (
-              <CommandItem
-                key={action.label}
-                onSelect={() => setOpen(false)}
-              >
-                <action.icon className="mr-2 h-4 w-4 text-muted-foreground" />
-                <span>{action.label}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </CommandList>
-      </Command>
+        <CommandGroup heading="Recent">
+          <CommandItem onSelect={() => { setOpen(false); router.push("/research"); }}>
+            <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+            <span>Research a company</span>
+          </CommandItem>
+        </CommandGroup>
+      </CommandList>
     </CommandDialog>
   );
 }

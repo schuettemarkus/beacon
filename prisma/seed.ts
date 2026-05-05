@@ -4,15 +4,12 @@ import { leads, contacts, signals, emails } from '../seed-data'
 const prisma = new PrismaClient()
 
 async function main() {
-  // Clear existing data
-  await prisma.email.deleteMany()
-  await prisma.signal.deleteMany()
-  await prisma.contact.deleteMany()
-  await prisma.activity.deleteMany()
-  await prisma.sequence.deleteMany()
-  await prisma.chatThread.deleteMany()
-  await prisma.researchRun.deleteMany()
-  await prisma.lead.deleteMany()
+  // Only seed if no leads exist (idempotent)
+  const existingLeads = await prisma.lead.count()
+  if (existingLeads > 0) {
+    console.log(`✓ Database already has ${existingLeads} leads, skipping seed`)
+    return
+  }
 
   // Seed leads
   for (const lead of leads) {

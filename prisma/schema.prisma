@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -35,6 +36,9 @@ model Lead {
   funding      String
   fitScore     Int
   status       String    @default("today")
+  dealStage    String    @default("New")
+  dealValue    String?
+  logoUrl      String?
   createdAt    DateTime  @default(now())
   snoozedUntil DateTime?
 

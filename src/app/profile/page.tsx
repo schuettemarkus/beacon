@@ -10,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from "@/app/providers";
 import { LogOut } from "lucide-react";
-import { logout } from "@/lib/client-auth";
 
 const integrations = [
   { name: "HubSpot", description: "Sync contacts and deals", connected: false },
@@ -23,8 +22,8 @@ export default function ProfilePage() {
   const user = useUser();
   const router = useRouter();
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
   }

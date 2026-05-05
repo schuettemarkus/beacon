@@ -11,15 +11,18 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { CommandBar } from "@/components/layout/command-bar";
 import { AppShell } from "@/components/layout/app-shell";
-import { getStoredUser, type AuthUser } from "@/lib/client-auth";
 
-const UserContext = createContext<AuthUser | null>(null);
+export type AuthUser = {
+  id: string;
+  name: string;
+  email: string;
+} | null;
+
+const UserContext = createContext<AuthUser>(null);
 
 export function useUser() {
   return useContext(UserContext);
 }
-
-export type { AuthUser };
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -34,20 +37,32 @@ export function Providers({ children }: { children: ReactNode }) {
       })
   );
 
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<AuthUser>(null);
   const [hydrated, setHydrated] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
   useEffect(() => {
-    setUser(getStoredUser());
-    setHydrated(true);
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        setUser(data?.user || null);
+        setHydrated(true);
+      })
+      .catch(() => {
+        setUser(null);
+        setHydrated(true);
+      });
   }, []);
 
-  // Re-check user on route changes (e.g. after login/logout)
+  // Re-check on route changes (post-login/logout)
   useEffect(() => {
-    setUser(getStoredUser());
-  }, [pathname]);
+    if (!hydrated) return;
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setUser(data?.user || null))
+      .catch(() => setUser(null));
+  }, [pathname, hydrated]);
 
   // Redirect logic
   useEffect(() => {
@@ -59,7 +74,6 @@ export function Providers({ children }: { children: ReactNode }) {
     }
   }, [user, pathname, hydrated, router]);
 
-  // Show nothing while hydrating to avoid flash
   if (!hydrated) return null;
 
   const isLoginPage = pathname === "/login";

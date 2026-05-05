@@ -7,7 +7,6 @@ import { BeaconLogo } from "@/components/layout/beacon-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { login, register } from "@/lib/client-auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,23 +17,35 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const result = isRegister
-      ? register(name, email, password)
-      : login(email, password);
+    const endpoint = isRegister ? "/api/auth/register" : "/api/auth/login";
+    const body = isRegister ? { name, email, password } : { email, password };
 
-    if (result.error) {
-      setError(result.error);
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Something went wrong");
+        setLoading(false);
+        return;
+      }
+
+      router.push("/");
+      router.refresh();
+    } catch {
+      setError("Network error. Please try again.");
       setLoading(false);
-      return;
     }
-
-    router.push("/");
-    router.refresh();
   }
 
   return (
@@ -45,7 +56,6 @@ export default function LoginPage() {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="w-full max-w-sm"
       >
-        {/* Brand */}
         <div className="mb-8 flex flex-col items-center gap-3">
           <BeaconLogo size={48} />
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
@@ -58,13 +68,11 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {isRegister && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
             >
               <Label htmlFor="name">Full name</Label>
               <Input
@@ -116,11 +124,7 @@ export default function LoginPage() {
             </motion.p>
           )}
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full"
-          >
+          <Button type="submit" disabled={loading} className="w-full">
             {loading
               ? "Please wait..."
               : isRegister
@@ -129,7 +133,6 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        {/* Toggle */}
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {isRegister ? "Already have an account?" : "Don't have an account?"}{" "}
           <button
