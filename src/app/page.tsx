@@ -1,35 +1,18 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DailyBriefing } from "@/components/inbox/daily-briefing";
 import { LeadGroup } from "@/components/inbox/lead-group";
-import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
-import type { Lead } from "@/components/inbox/lead-card";
-
-interface LeadsResponse {
-  today: Lead[];
-  thisWeek: Lead[];
-  snoozed: Lead[];
-  closedWon: Lead[];
-  archived: Lead[];
-}
+import { getLeadsGrouped } from "@/lib/client-data";
 
 export default function InboxPage() {
-  const { data, isLoading } = useQuery<LeadsResponse>({
-    queryKey: ["leads"],
-    queryFn: async () => {
-      const res = await fetch("/api/leads");
-      if (!res.ok) throw new Error("Failed to fetch leads");
-      return res.json();
-    },
-  });
+  const data = useMemo(() => getLeadsGrouped(), []);
 
-  const totalCount = data
-    ? data.today.length + data.thisWeek.length + data.snoozed.length
-    : 0;
+  const totalCount =
+    data.today.length + data.thisWeek.length + data.snoozed.length;
 
   return (
     <div className="relative mx-auto w-full max-w-2xl space-y-6 px-4 py-6">
@@ -38,7 +21,7 @@ export default function InboxPage() {
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Inbox
         </h1>
-        {!isLoading && totalCount > 0 && (
+        {totalCount > 0 && (
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
             {totalCount}
           </span>
@@ -46,17 +29,13 @@ export default function InboxPage() {
       </div>
 
       {/* Content */}
-      {isLoading ? (
-        <InboxSkeleton />
-      ) : data ? (
-        <div className="space-y-6">
-          {data.today.length > 0 && <DailyBriefing todayLeads={data.today} />}
+      <div className="space-y-6">
+        {data.today.length > 0 && <DailyBriefing todayLeads={data.today} />}
 
-          <LeadGroup title="Today" leads={data.today} defaultOpen />
-          <LeadGroup title="This Week" leads={data.thisWeek} defaultOpen />
-          <LeadGroup title="Snoozed" leads={data.snoozed} defaultOpen={false} />
-        </div>
-      ) : null}
+        <LeadGroup title="Today" leads={data.today} defaultOpen />
+        <LeadGroup title="This Week" leads={data.thisWeek} defaultOpen />
+        <LeadGroup title="Snoozed" leads={data.snoozed} defaultOpen={false} />
+      </div>
 
       {/* FAB */}
       <motion.div

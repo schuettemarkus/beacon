@@ -10,36 +10,30 @@ import {
   Timer,
   Kanban,
   BarChart3,
-  Settings,
-  Moon,
-  Sun,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 import { BeaconLogo } from "@/components/layout/beacon-logo";
+import { useUser } from "@/app/providers";
 
 const navItems = [
-  { href: "/inbox", label: "Inbox", icon: Inbox },
+  { href: "/", label: "Inbox", icon: Inbox },
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/research", label: "Research", icon: Sparkles },
   { href: "/cadences", label: "Cadences", icon: Timer },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [isDark, setIsDark] = useState(false);
+  const user = useUser();
 
-  useEffect(() => {
-    const root = document.documentElement;
-    setIsDark(root.classList.contains("dark"));
-  }, []);
-
-  function toggleDarkMode() {
-    const root = document.documentElement;
-    root.classList.toggle("dark");
-    setIsDark(!isDark);
+  function getInitials(name: string) {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   }
 
   return (
@@ -58,7 +52,10 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 px-2 py-4 lg:px-3">
         {navItems.map((item) => {
           const isActive =
-            pathname === item.href || pathname?.startsWith(item.href + "/");
+            item.href === "/"
+              ? pathname === "/"
+              : pathname === item.href ||
+                pathname?.startsWith(item.href + "/");
           const Icon = item.icon;
 
           return (
@@ -89,23 +86,34 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Dark mode toggle */}
-      <div className="border-t border-border p-3">
-        <button
-          onClick={toggleDarkMode}
-          className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground lg:justify-start"
-          aria-label="Toggle dark mode"
-        >
-          {isDark ? (
-            <Sun className="h-5 w-5" />
-          ) : (
-            <Moon className="h-5 w-5" />
-          )}
-          <span className="hidden lg:inline">
-            {isDark ? "Light mode" : "Dark mode"}
-          </span>
-        </button>
-      </div>
+      {/* User profile */}
+      {user && (
+        <div className="border-t border-border p-2 lg:p-3">
+          <Link href="/profile">
+            <motion.div
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                pathname === "/profile" || pathname === "/settings"
+                  ? "text-primary bg-primary/8"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              }`}
+              whileHover={{ x: 2 }}
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            >
+              <div className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+                {getInitials(user.name)}
+              </div>
+              <div className="relative z-10 hidden min-w-0 lg:block">
+                <p className="truncate text-sm font-medium leading-tight">
+                  {user.name}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {user.email}
+                </p>
+              </div>
+            </motion.div>
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }
