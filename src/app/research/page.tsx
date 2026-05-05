@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, X } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
@@ -29,12 +30,21 @@ function saveSearch(query: string) {
 }
 
 export default function ResearchPage() {
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     setRecentSearches(getRecentSearches());
+    // Auto-run if ?q= param is present (from Discover page)
+    const q = searchParams.get("q");
+    if (q) {
+      setQuery(q);
+      saveSearch(q);
+      research.mutate(q);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const research = useMutation({
