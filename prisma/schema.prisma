@@ -42,11 +42,12 @@ model Lead {
   createdAt    DateTime  @default(now())
   snoozedUntil DateTime?
 
-  contacts   Contact[]
-  signals    Signal[]
-  emails     Email[]
-  activities Activity[]
-  sequences  Sequence[]
+  contacts    Contact[]
+  signals     Signal[]
+  emails      Email[]
+  activities  Activity[]
+  sequences   Sequence[]
+  enrollments Enrollment[]
 }
 
 model Contact {
@@ -110,6 +111,32 @@ model Activity {
   at      DateTime @default(now())
 
   lead Lead @relation(fields: [leadId], references: [id])
+}
+
+model Cadence {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  steps       String       // JSON: [{type, label, days?, emailVariant?}]
+  status      String       @default("active")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now())
+
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id          String    @id @default(cuid())
+  cadenceId   String
+  leadId      String
+  currentStep Int       @default(0)
+  status      String    @default("active")
+  startedAt   DateTime  @default(now())
+  nextStepAt  DateTime?
+  completedAt DateTime?
+
+  cadence Cadence @relation(fields: [cadenceId], references: [id])
+  lead    Lead    @relation(fields: [leadId], references: [id])
 }
 
 model ResearchRun {

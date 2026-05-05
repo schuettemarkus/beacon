@@ -13,10 +13,25 @@ export async function PATCH(
   const { id } = await params;
   const { dealStage, dealValue } = await request.json();
 
+  // Get current stage for activity log
+  const current = await prisma.lead.findUnique({ where: { id }, select: { dealStage: true } });
+
   const data: any = {};
   if (dealStage !== undefined) data.dealStage = dealStage;
   if (dealValue !== undefined) data.dealValue = dealValue;
 
   const lead = await prisma.lead.update({ where: { id }, data });
+
+  // Log pipeline movement
+  if (dealStage && current && dealStage !== current.dealStage) {
+    await prisma.activity.create({
+      data: {
+        leadId: id,
+        kind: "pipeline_moved",
+        payload: JSON.stringify({ from: current.dealStage, to: dealStage }),
+      },
+    });
+  }
+
   return NextResponse.json(lead);
 }

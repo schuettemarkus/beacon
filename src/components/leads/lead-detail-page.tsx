@@ -32,6 +32,7 @@ import { SignalItem } from "@/components/leads/signal-item";
 import { EmailPreview } from "@/components/leads/email-preview";
 import { ThreatSurface } from "@/components/leads/threat-surface";
 import { useLeadActions } from "@/hooks/use-lead-actions";
+import { AddNoteForm } from "@/components/leads/add-note-form";
 
 function fitScoreColor(score: number) {
   if (score >= 80) return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
@@ -232,6 +233,7 @@ export default function LeadDetailPage() {
         {/* Activity */}
         <TabsContent value="activity">
           <div className="space-y-4 pt-4">
+            <AddNoteForm leadId={id} />
             {lead.activities && lead.activities.length > 0 ? (
               <div className="relative space-y-4">
                 {lead.activities
