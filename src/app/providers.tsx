@@ -11,6 +11,8 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { CommandBar } from "@/components/layout/command-bar";
 import { AppShell } from "@/components/layout/app-shell";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { ShortcutsHelp } from "@/components/layout/shortcuts-help";
 
 export type AuthUser = {
   id: string;
@@ -77,6 +79,12 @@ export function Providers({ children }: { children: ReactNode }) {
     }
   }, [user, pathname, hydrated, router, isPublicPage]);
 
+  // Apply dark mode preference on mount
+  useEffect(() => {
+    const dark = localStorage.getItem("beacon_dark_mode") === "true";
+    document.documentElement.classList.toggle("dark", dark);
+  }, []);
+
   if (!hydrated) return null;
 
   return (
@@ -88,7 +96,13 @@ export function Providers({ children }: { children: ReactNode }) {
           <AppShell>{children}</AppShell>
         ) : null}
         {user && <CommandBar />}
+        {user && <KeyboardShortcutsProvider />}
       </QueryClientProvider>
     </UserContext.Provider>
   );
+}
+
+function KeyboardShortcutsProvider() {
+  const { showHelp, setShowHelp } = useKeyboardShortcuts();
+  return <ShortcutsHelp open={showHelp} onOpenChange={setShowHelp} />;
 }

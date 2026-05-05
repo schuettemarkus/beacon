@@ -10,9 +10,19 @@ interface LeadGroupProps {
   title: string;
   leads: Lead[];
   defaultOpen?: boolean;
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
-export function LeadGroup({ title, leads, defaultOpen = true }: LeadGroupProps) {
+export function LeadGroup({
+  title,
+  leads,
+  defaultOpen = true,
+  selectable,
+  selectedIds,
+  onToggleSelect,
+}: LeadGroupProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   if (leads.length === 0) return null;
@@ -48,7 +58,14 @@ export function LeadGroup({ title, leads, defaultOpen = true }: LeadGroupProps) 
           >
             <div className="flex flex-col gap-2 pb-2">
               {leads.map((lead, index) => (
-                <LeadCard key={lead.id} lead={lead} index={index} />
+                <LeadCard
+                  key={lead.id}
+                  lead={lead}
+                  index={index}
+                  selectable={selectable}
+                  selected={selectedIds?.has(lead.id)}
+                  onToggleSelect={onToggleSelect}
+                />
               ))}
             </div>
           </motion.div>

@@ -11,6 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useUser } from "@/app/providers";
 import { LogOut } from "lucide-react";
 
@@ -69,6 +77,7 @@ export default function ProfilePage() {
           <TabsTrigger value="icp">ICP Profile</TabsTrigger>
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="signature">Email Signature</TabsTrigger>
+          <TabsTrigger value="preferences">Preferences</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile">
@@ -158,8 +167,112 @@ export default function ProfilePage() {
             </div>
           </Card>
         </TabsContent>
+
+        <TabsContent value="preferences">
+          <PreferencesEditor />
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function PreferencesEditor() {
+  const [darkMode, setDarkMode] = useState(false);
+  const [shortcutsEnabled, setShortcutsEnabled] = useState(true);
+  const [compactMode, setCompactMode] = useState(false);
+  const [defaultGroup, setDefaultGroup] = useState("today");
+
+  useEffect(() => {
+    setDarkMode(localStorage.getItem("beacon_dark_mode") === "true");
+    setShortcutsEnabled(
+      localStorage.getItem("beacon_shortcuts_enabled") !== "false"
+    );
+    setCompactMode(localStorage.getItem("beacon_compact_mode") === "true");
+    setDefaultGroup(
+      localStorage.getItem("beacon_default_group") || "today"
+    );
+  }, []);
+
+  function toggleDarkMode(checked: boolean) {
+    setDarkMode(checked);
+    localStorage.setItem("beacon_dark_mode", String(checked));
+    document.documentElement.classList.toggle("dark", checked);
+  }
+
+  function toggleShortcuts(checked: boolean) {
+    setShortcutsEnabled(checked);
+    localStorage.setItem("beacon_shortcuts_enabled", String(checked));
+  }
+
+  function toggleCompact(checked: boolean) {
+    setCompactMode(checked);
+    localStorage.setItem("beacon_compact_mode", String(checked));
+  }
+
+  function changeDefaultGroup(val: string | null) {
+    if (!val) return;
+    setDefaultGroup(val);
+    localStorage.setItem("beacon_default_group", val);
+  }
+
+  return (
+    <Card className="p-6">
+      <h2 className="text-lg font-medium">Preferences</h2>
+      <Separator className="my-4" />
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Dark Mode</Label>
+            <p className="text-xs text-muted-foreground">
+              Switch between light and dark theme
+            </p>
+          </div>
+          <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Keyboard Shortcuts</Label>
+            <p className="text-xs text-muted-foreground">
+              Use keys like j/k to navigate leads, a to archive, ? for help
+            </p>
+          </div>
+          <Switch
+            checked={shortcutsEnabled}
+            onCheckedChange={toggleShortcuts}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Compact Mode</Label>
+            <p className="text-xs text-muted-foreground">
+              Show denser inbox cards with less whitespace
+            </p>
+          </div>
+          <Switch checked={compactMode} onCheckedChange={toggleCompact} />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label>Default Inbox Group</Label>
+            <p className="text-xs text-muted-foreground">
+              Which group opens expanded by default
+            </p>
+          </div>
+          <Select value={defaultGroup} onValueChange={changeDefaultGroup}>
+            <SelectTrigger className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="this_week">This Week</SelectItem>
+              <SelectItem value="all">All</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </Card>
   );
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -7,6 +8,7 @@ import {
   Mail,
   Clock,
   Archive,
+  Check,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +29,7 @@ export interface Lead {
   status: string;
   createdAt: string;
   snoozedUntil?: string;
+  logoUrl?: string;
   contacts: unknown[];
   signals: { title: string; [key: string]: unknown }[];
 }
@@ -57,11 +60,21 @@ function getFitScoreClasses(score: number) {
 interface LeadCardProps {
   lead: Lead;
   index?: number;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export function LeadCard({ lead, index = 0 }: LeadCardProps) {
+export function LeadCard({
+  lead,
+  index = 0,
+  selectable,
+  selected,
+  onToggleSelect,
+}: LeadCardProps) {
   const router = useRouter();
   const actions = useLeadActions(lead.id, lead.company);
+  const [imgError, setImgError] = useState(false);
 
   const handleClick = () => {
     router.push(`/leads/${lead.id}`);
@@ -98,12 +111,43 @@ export function LeadCard({ lead, index = 0 }: LeadCardProps) {
         onClick={handleClick}
       >
         <CardContent className="flex items-start gap-3">
-          {/* Monogram */}
-          <div
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${getMonogramColor(lead.industry)}`}
-          >
-            {lead.company.charAt(0).toUpperCase()}
-          </div>
+          {/* Selection checkbox */}
+          {selectable && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelect?.(lead.id);
+              }}
+              className="flex h-10 w-5 shrink-0 items-center justify-center"
+              aria-label={selected ? "Deselect lead" : "Select lead"}
+            >
+              <div
+                className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${
+                  selected
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-muted-foreground/40 hover:border-muted-foreground"
+                }`}
+              >
+                {selected && <Check className="size-3.5" />}
+              </div>
+            </button>
+          )}
+
+          {/* Logo / Monogram */}
+          {lead.logoUrl && !imgError ? (
+            <img
+              src={lead.logoUrl}
+              alt={`${lead.company} logo`}
+              className="h-10 w-10 shrink-0 rounded-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <div
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${getMonogramColor(lead.industry)}`}
+            >
+              {lead.company.charAt(0).toUpperCase()}
+            </div>
+          )}
 
           {/* Content */}
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
