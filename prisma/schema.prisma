@@ -15,6 +15,7 @@ model User {
   password   String
   avatarUrl  String?
   icpProfile String?  // JSON
+  industry   String   @default("cybersecurity")
   createdAt  DateTime @default(now())
 }
 

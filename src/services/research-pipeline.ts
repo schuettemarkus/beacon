@@ -6,14 +6,18 @@ import { findCVEsForTechStack } from "./data-sources/cisa-kev";
 import { fetchCVEsByProduct } from "./data-sources/nvd-cve";
 import { fetchCyberNews } from "./data-sources/news";
 import { getCompanyLogoUrl } from "./data-sources/clearbit-logo";
+import { getIndustryConfig } from "@/config/industries";
 import type { CompanyResearchPayload } from "./company-research";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export async function runResearchPipeline(
   query: string,
-  userId?: string
+  userId?: string,
+  industry: string = "cybersecurity"
 ): Promise<CompanyResearchPayload> {
+  const config = getIndustryConfig(industry);
+
   // Check cache: reuse recent research for the same query
   if (userId) {
     const cached = await prisma.researchRun.findFirst({
@@ -45,14 +49,16 @@ export async function runResearchPipeline(
   const domain = inferDomain(query);
   const logoUrl = getCompanyLogoUrl(domain);
 
-  // Step 2: Get CVE data based on inferred tech stack
+  // Step 2: Get CVE data based on inferred tech stack (only for industries that use vuln sources)
   const inferredTechStack = inferTechStack(wikiInfo?.description || "", query);
-  const [cisaVulns, nvdVulns] = await Promise.all([
-    findCVEsForTechStack(inferredTechStack),
-    inferredTechStack.length > 0
-      ? fetchCVEsByProduct(inferredTechStack[0])
-      : Promise.resolve([]),
-  ]);
+  const [cisaVulns, nvdVulns] = config.useVulnSources
+    ? await Promise.all([
+        findCVEsForTechStack(inferredTechStack),
+        inferredTechStack.length > 0
+          ? fetchCVEsByProduct(inferredTechStack[0])
+          : Promise.resolve([]),
+      ])
+    : [[], []];
 
   // Step 3: Send all raw data to Claude for structured synthesis
   const rawData = {
@@ -65,6 +71,13 @@ export async function runResearchPipeline(
     inferredTechStack,
     logoUrl,
     domain,
+    industryContext: config.displayName,
+    newsKeywords: config.newsKeywords,
+    industry,
+    analystRole: config.analystRole,
+    signalTypes: config.signalTypes,
+    typicalBuyerTitles: config.typicalBuyerTitles,
+    keyRegulations: config.keyRegulations,
   };
 
   const payload = await synthesizeWithClaude(rawData);
@@ -75,7 +88,12 @@ export async function runResearchPipeline(
 async function synthesizeWithClaude(
   rawData: any
 ): Promise<CompanyResearchPayload> {
-  const systemPrompt = `You are a cybersecurity sales intelligence analyst. Given raw data about a company from SEC filings, Wikipedia, CVE databases, and news, produce a detailed structured JSON analysis.
+  const signalTypesStr = (rawData.signalTypes || []).map((s: string) => `"${s}"`).join("|");
+  const buyerTitlesStr = (rawData.typicalBuyerTitles || []).join(", ");
+  const regulationsStr = (rawData.keyRegulations || []).join(", ");
+  const industryDisplay = rawData.industryContext || "Cybersecurity";
+
+  const systemPrompt = `You are a ${rawData.analystRole || "cybersecurity sales intelligence analyst"}. Given raw data about a company from SEC filings, Wikipedia, vulnerability databases, and news, produce a detailed structured JSON analysis.
 
 Return ONLY valid JSON matching this TypeScript type (no markdown, no code fences):
 {
@@ -89,7 +107,7 @@ Return ONLY valid JSON matching this TypeScript type (no markdown, no code fence
   "funding": string,
   "fitScore": number (0-100),
   "signals": [{
-    "type": "regulatory"|"peer_breach"|"industry_breach"|"tech_vuln"|"hiring"|"funding"|"ma"|"compliance_audit"|"news",
+    "type": ${signalTypesStr || '"regulatory"|"peer_breach"|"industry_breach"|"tech_vuln"|"hiring"|"funding"|"ma"|"compliance_audit"|"news"'},
     "severity": "low"|"medium"|"high"|"critical",
     "source": string (the source name, e.g. "CISA KEV", "NVD", "SEC EDGAR"),
     "sourceUrl": string (URL to the actual source — use real URLs like https://www.cisa.gov/known-exploited-vulnerabilities-catalog, https://nvd.nist.gov/vuln/detail/CVE-XXXX-XXXX, https://www.sec.gov/cgi-bin/browse-edgar, or news article URLs from the raw data),
@@ -97,16 +115,16 @@ Return ONLY valid JSON matching this TypeScript type (no markdown, no code fence
     "body": string (2-3 sentences explaining the signal's sales relevance)
   }],
   "contacts": [{
-    "name": string (infer likely titles like CISO, VP Security, CTO, but use generic names),
+    "name": string (infer likely titles like ${buyerTitlesStr || "CISO, VP Security, CTO"}, but use generic names),
     "title": string,
     "email": "contact@{domain}" (placeholder only),
     "decisionMakerScore": number (0-100)
   }],
   "regulatoryProfile": [{
-    "regulation": string (e.g. "HIPAA", "PCI DSS 4.0", "SOX", "GDPR", "NIS2", "DORA", "CMMC 2.0"),
+    "regulation": string (e.g. ${regulationsStr || "HIPAA, PCI DSS 4.0, SOX, GDPR, NIS2, DORA, CMMC 2.0"}),
     "status": string (e.g. "Applicable", "Likely applicable", "Under review"),
     "deadline": string or null (e.g. "2025-04-01"),
-    "relevance": string (1 sentence on why this matters for a security sale)
+    "relevance": string (1 sentence on why this matters for a ${industryDisplay} sale)
   }],
   "recentNews": [{
     "title": string,
@@ -128,7 +146,7 @@ IMPORTANT RULES:
 - For CISA KEV signals, use https://www.cisa.gov/known-exploited-vulnerabilities-catalog
 - For SEC signals, use https://www.sec.gov/cgi-bin/browse-edgar?company={company}&CIK=&type=10-K&dateb=&owner=include&count=10&search_text=&action=getcompany
 - For news signals, use the actual article URLs from the raw data
-- Generate 5-8 high-quality signals that a cybersecurity salesperson would find actionable
+- Generate 5-8 high-quality signals that a ${industryDisplay} salesperson would find actionable
 - Include at least 3 regulatory items relevant to the company's industry
 - The peer comparison should include real, well-known companies
 - Be thorough but factual. Mark inferences clearly.`;

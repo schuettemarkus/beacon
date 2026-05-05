@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const payload = await runResearchPipeline(query, user.id);
+    const payload = await runResearchPipeline(query, user.id, user.industry);
 
     // Save the research run
     const run = await prisma.researchRun.create({

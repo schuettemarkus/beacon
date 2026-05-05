@@ -72,5 +72,5 @@ export async function getSession() {
   const user = await prisma.user.findUnique({ where: { id: session.userId } });
   if (!user) return null;
 
-  return { id: user.id, name: user.name, email: user.email };
+  return { id: user.id, name: user.name, email: user.email, industry: (user as any).industry || "cybersecurity" };
 }

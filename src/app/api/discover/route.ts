@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { anthropic } from "@/lib/anthropic";
 import { fetchWikipediaInfo } from "@/services/data-sources/wikipedia";
+import { getIndustryConfig } from "@/config/industries";
 
 export async function POST(request: Request) {
   const user = await getSession();
@@ -13,6 +14,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "ICP description is required" }, { status: 400 });
   }
 
+  const config = getIndustryConfig(user.industry);
+
   // Step 1: Ask Claude to suggest real companies matching the ICP
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
@@ -20,7 +23,7 @@ export async function POST(request: Request) {
     system: [
       {
         type: "text",
-        text: `You are a B2B sales intelligence assistant for cybersecurity vendors. The user will describe their ideal customer profile (ICP). Return ONLY a valid JSON array of 8 real companies that match. For each company include: "name" (string), "domain" (string), "industry" (string), "employees" (estimated number), "reasons" (array of 2-3 short strings explaining why they match the ICP). Only suggest companies you are confident actually exist. No markdown, no code fences, just the JSON array.`,
+        text: `${config.discoveryRole} The user will describe their ideal customer profile (ICP). Return ONLY a valid JSON array of 8 real companies that match. For each company include: "name" (string), "domain" (string), "industry" (string), "employees" (estimated number), "reasons" (array of 2-3 short strings explaining why they match the ICP). Only suggest companies you are confident actually exist. No markdown, no code fences, just the JSON array.`,
         cache_control: { type: "ephemeral" },
       },
     ],
@@ -74,11 +77,18 @@ function calculateFitScore(suggestion: any, icp: string): number {
   const reasons = (suggestion.reasons || []).join(" ").toLowerCase();
 
   // Boost for specific matching criteria
-  if (icpLower.includes("no ciso") && reasons.includes("ciso")) score += 15;
   if (icpLower.includes("cloud") && reasons.includes("cloud")) score += 10;
   if (icpLower.includes("series") && reasons.includes("series")) score += 10;
   if (suggestion.employees > 200 && suggestion.employees < 5000) score += 5;
-  if (reasons.includes("security") || reasons.includes("compliance")) score += 10;
+  if (reasons.includes("compliance") || reasons.includes("regulation")) score += 10;
+
+  // Boost when ICP keywords match reasons
+  const icpWords = icpLower.split(/\s+/).filter((w: string) => w.length > 4);
+  for (const word of icpWords) {
+    if (reasons.includes(word)) {
+      score += 3;
+    }
+  }
 
   return Math.min(score, 95);
 }

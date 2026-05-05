@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { anthropic } from "@/lib/anthropic";
+import { getIndustryConfig } from "@/config/industries";
 
 export async function POST(
   request: Request,
@@ -32,6 +33,8 @@ export async function POST(
 
   const payload = JSON.parse(run.payload);
 
+  const config = getIndustryConfig(user.industry);
+
   // Get or create chat thread
   let thread = await prisma.chatThread.findFirst({
     where: { researchRunId: runId },
@@ -45,7 +48,7 @@ export async function POST(
   existingMessages.push({ role: "user", content: message });
 
   // Build Claude messages
-  const systemPrompt = `You are a cybersecurity sales co-pilot. You have deep knowledge about this company:
+  const systemPrompt = `You are a ${config.copilotRole}. You have deep knowledge about this company:
 
 Company: ${payload.company}
 Industry: ${payload.industry}
@@ -62,7 +65,7 @@ ${(payload.signals || []).map((s: any) => `- [${s.severity}] ${s.title}: ${s.bod
 Help the salesperson with:
 - Outreach drafting and refinement
 - Building sales narratives and talking points
-- Answering questions about the company's security posture
+- Answering questions about the company's profile and opportunities
 - Comparing with peers
 - Identifying selling angles
 

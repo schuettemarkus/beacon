@@ -105,7 +105,8 @@ export async function POST(
     const emails = await generateEmailVariants(
       payload,
       firstContact?.name,
-      firstContact?.title
+      firstContact?.title,
+      user.industry
     );
 
     // Get the first contact ID (or create a placeholder)
