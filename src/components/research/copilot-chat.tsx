@@ -10,6 +10,23 @@ import {
   Sparkles,
 } from "lucide-react";
 
+function renderSimpleMarkdown(text: string): string {
+  return text
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code>$1</code>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">$1</a>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br/>')
+    .replace(/^(.+)$/, '<p>$1</p>');
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -263,13 +280,22 @@ function ChatContent({
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
                 msg.role === "user"
-                  ? "bg-indigo-600 text-white"
+                  ? "bg-indigo-600 text-white whitespace-pre-wrap"
                   : "bg-gray-100 text-gray-800"
               }`}
             >
-              {msg.content}
+              {msg.role === "assistant" ? (
+                <div
+                  className="prose prose-sm prose-gray max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_strong]:font-semibold [&_code]:text-xs [&_code]:bg-gray-200 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded"
+                  dangerouslySetInnerHTML={{
+                    __html: renderSimpleMarkdown(msg.content),
+                  }}
+                />
+              ) : (
+                msg.content
+              )}
             </div>
           </motion.div>
         ))}
