@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, type Variants } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,8 @@ import {
   Building2,
   Globe,
   DollarSign,
+  Check,
+  Loader2,
 } from "lucide-react";
 import type { CompanyResearchPayload } from "@/services/company-research";
 
@@ -32,9 +36,33 @@ const fadeUp: Variants = {
 
 interface ResearchResultsProps {
   data: CompanyResearchPayload;
+  researchRunId?: string;
 }
 
-export function ResearchResults({ data }: ResearchResultsProps) {
+export function ResearchResults({ data, researchRunId }: ResearchResultsProps) {
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const router = useRouter();
+
+  async function handleSaveToInbox() {
+    if (!researchRunId || saving || saved) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/research/${researchRunId}/save`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const { leadId } = await res.json();
+        setSaved(true);
+        setTimeout(() => router.push(`/leads/${leadId}`), 1500);
+      }
+    } catch (e) {
+      console.error("Save failed:", e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const kpis = [
     { label: "Industry", value: data.industry, icon: Building2 },
     { label: "Headquarters", value: data.hq, icon: Globe },
@@ -71,13 +99,20 @@ export function ResearchResults({ data }: ResearchResultsProps) {
           Fit {data.fitScore}%
         </Badge>
         <div className="ml-auto flex gap-2">
-          <Button variant="outline" size="sm">
-            <Bookmark className="h-4 w-4 mr-1.5" />
-            Save to Inbox
-          </Button>
-          <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
-            <Mail className="h-4 w-4 mr-1.5" />
-            Generate Outreach
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSaveToInbox}
+            disabled={saving || saved || !researchRunId}
+          >
+            {saved ? (
+              <Check className="h-4 w-4 mr-1.5 text-green-600" />
+            ) : saving ? (
+              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+            ) : (
+              <Bookmark className="h-4 w-4 mr-1.5" />
+            )}
+            {saved ? "Saved + Emails Generated" : saving ? "Saving..." : "Save to Inbox"}
           </Button>
         </div>
       </motion.div>

@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, X } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import type { CompanyResearchPayload } from "@/services/company-research";
+
+type ResearchResponse = CompanyResearchPayload & { researchRunId?: string };
 import { ResearchResults } from "@/components/research/research-results";
 import { ResearchSkeleton } from "@/components/research/research-skeleton";
 import { CopilotChat } from "@/components/research/copilot-chat";
@@ -36,7 +38,7 @@ export default function ResearchPage() {
   }, []);
 
   const research = useMutation({
-    mutationFn: async (q: string): Promise<CompanyResearchPayload> => {
+    mutationFn: async (q: string): Promise<ResearchResponse> => {
       const res = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -194,7 +196,7 @@ export default function ResearchPage() {
               {research.isPending ? (
                 <ResearchSkeleton />
               ) : research.data ? (
-                <ResearchResults data={research.data} />
+                <ResearchResults data={research.data} researchRunId={research.data.researchRunId} />
               ) : null}
             </motion.div>
           )}
@@ -202,7 +204,12 @@ export default function ResearchPage() {
       </div>
 
       {/* Co-Pilot Chat Panel */}
-      {research.data && <CopilotChat company={research.data.company} />}
+      {research.data && (
+        <CopilotChat
+          company={research.data.company}
+          researchRunId={research.data.researchRunId}
+        />
+      )}
     </div>
   );
 }

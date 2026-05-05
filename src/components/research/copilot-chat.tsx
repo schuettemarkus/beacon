@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   MessageCircle,
-  X,
   Send,
   ChevronUp,
   Sparkles,
@@ -23,25 +22,12 @@ const SUGGESTED_PROMPTS = [
   "Draft a cold email for the CTO",
 ];
 
-function mockResponse(company: string, userMessage: string): string {
-  const lower = userMessage.toLowerCase();
-  if (lower.includes("selling") || lower.includes("angle")) {
-    return `Based on ${company}'s profile, here are the key selling angles:\n\n1. They're actively hiring senior engineering talent — they need tools that accelerate onboarding.\n2. Their tech stack shows recent adoption of modern data tools — they're investing in infrastructure.\n3. Their growth trajectory suggests they'll need to scale security operations soon.`;
-  }
-  if (lower.includes("security") || lower.includes("posture")) {
-    return `${company}'s security posture analysis:\n\n- No major breaches reported in the last 12 months\n- They've recently added monitoring tooling to their stack\n- Their hiring patterns suggest they're building out a dedicated security team\n- Regulatory exposure is moderate given their industry vertical`;
-  }
-  if (lower.includes("email") || lower.includes("draft") || lower.includes("cold")) {
-    return `Here's a cold email draft for ${company}'s CTO:\n\nSubject: Quick question about ${company}'s security roadmap\n\nHi [Name],\n\nI noticed ${company} recently brought on new infrastructure tooling — congrats on the growth. As you scale, security operations tend to become a bottleneck.\n\nWe help teams like yours automate threat detection without adding headcount. Would a 15-minute call next week make sense?\n\nBest,\n[Your name]`;
-  }
-  return `Based on ${company}'s profile, here's what stands out:\n\n- Their growth stage and funding suggest they're in a buying window for enterprise tools\n- The recent hiring signals indicate expanding teams that need tooling support\n- Their tech stack shows a preference for modern, cloud-native solutions\n\nWould you like me to dig deeper into any specific area?`;
-}
-
-interface CopilotChatProps {
+export interface CopilotChatProps {
   company: string;
+  researchRunId?: string;
 }
 
-export function CopilotChat({ company }: CopilotChatProps) {
+export function CopilotChat({ company, researchRunId }: CopilotChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -52,7 +38,7 @@ export function CopilotChat({ company }: CopilotChatProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = (content: string) => {
+  const sendMessage = useCallback(async (content: string) => {
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
@@ -62,17 +48,82 @@ export function CopilotChat({ company }: CopilotChatProps) {
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI response delay
-    setTimeout(() => {
-      const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: mockResponse(company, content),
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-      setIsTyping(false);
-    }, 1200);
-  };
+    // If we have a researchRunId, use the streaming API
+    if (researchRunId) {
+      try {
+        const res = await fetch(`/api/research/${researchRunId}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: content }),
+        });
+
+        if (!res.ok) throw new Error("Chat failed");
+
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+        const assistantId = crypto.randomUUID();
+
+        // Add empty assistant message that we'll stream into
+        setMessages((prev) => [
+          ...prev,
+          { id: assistantId, role: "assistant", content: "" },
+        ]);
+        setIsTyping(false);
+
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n");
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const data = line.slice(6);
+                if (data === "[DONE]") break;
+                try {
+                  const parsed = JSON.parse(data);
+                  fullText += parsed.text;
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantId ? { ...m, content: fullText } : m
+                    )
+                  );
+                } catch {
+                  // skip malformed chunks
+                }
+              }
+            }
+          }
+        }
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: "Sorry, I couldn't generate a response. Please try again.",
+          },
+        ]);
+        setIsTyping(false);
+      }
+    } else {
+      // Fallback mock for when no researchRunId
+      setTimeout(() => {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: `I can help analyze ${company} once the research data is loaded. Try running a research query first.`,
+          },
+        ]);
+        setIsTyping(false);
+      }, 500);
+    }
+  }, [company, researchRunId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,7 +133,7 @@ export function CopilotChat({ company }: CopilotChatProps) {
 
   return (
     <>
-      {/* Toggle button */}
+      {/* Mobile toggle */}
       <AnimatePresence>
         {!isOpen && (
           <motion.div
@@ -177,13 +228,11 @@ function ChatContent({
 }) {
   return (
     <div className="flex flex-col h-full">
-      {/* Header (desktop) */}
       <div className="hidden lg:flex items-center gap-2 px-4 py-3 border-b border-gray-100">
         <Sparkles className="h-4 w-4 text-indigo-600" />
         <span className="font-semibold text-sm">Research Co-Pilot</span>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 && (
           <div className="space-y-4">
@@ -243,7 +292,6 @@ function ChatContent({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <form
         onSubmit={onSubmit}
         className="border-t border-gray-100 px-4 py-3 flex gap-2"
