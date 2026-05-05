@@ -64,24 +64,25 @@ export function Providers({ children }: { children: ReactNode }) {
       .catch(() => setUser(null));
   }, [pathname, hydrated]);
 
+  const publicPages = ["/login", "/wiki", "/faq", "/sources", "/releases", "/tech-stack", "/cookies", "/privacy"];
+  const isPublicPage = publicPages.includes(pathname);
+
   // Redirect logic
   useEffect(() => {
     if (!hydrated) return;
-    if (!user && pathname !== "/login") {
+    if (!user && !isPublicPage) {
       router.replace("/login");
     } else if (user && pathname === "/login") {
       router.replace("/");
     }
-  }, [user, pathname, hydrated, router]);
+  }, [user, pathname, hydrated, router, isPublicPage]);
 
   if (!hydrated) return null;
-
-  const isLoginPage = pathname === "/login";
 
   return (
     <UserContext.Provider value={user}>
       <QueryClientProvider client={queryClient}>
-        {isLoginPage ? (
+        {isPublicPage ? (
           children
         ) : user ? (
           <AppShell>{children}</AppShell>
