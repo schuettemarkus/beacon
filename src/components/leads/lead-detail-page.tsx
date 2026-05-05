@@ -204,7 +204,7 @@ export default function LeadDetailPage() {
         <TabsContent value="people">
           <div className="grid grid-cols-1 gap-4 pt-4 lg:grid-cols-2">
             {lead.contacts?.map((contact: any) => (
-              <ContactCard key={contact.id} contact={contact} />
+              <ContactCard key={contact.id} contact={contact} leadId={id} />
             ))}
             {(!lead.contacts || lead.contacts.length === 0) && (
               <p className="text-sm text-muted-foreground">No contacts found.</p>

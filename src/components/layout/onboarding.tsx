@@ -4,8 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
-  Search,
-  Inbox,
+  Check,
   Target,
   Shield,
   HeartPulse,
@@ -105,8 +104,7 @@ export function Onboarding() {
   const titles = [
     "What do you sell?",
     "Define your ICP",
-    "Research your first company",
-    "You're all set",
+    "You're all set!",
   ];
 
   return (
@@ -278,23 +276,23 @@ export function Onboarding() {
             </motion.div>
           )}
 
-          {/* Step 2: Research */}
+          {/* Step 2: All set + Research */}
           {step === 2 && (
             <motion.div
-              key="research"
+              key="done"
               initial={{ opacity: 0, x: 40 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 }}
               transition={{ duration: 0.25 }}
               className="flex flex-col items-center gap-4 text-center"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Search className="size-6" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <Check className="size-6" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold">{titles[2]}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Search for any company to get a full intelligence breakdown powered by real data.
+                  Research your first company to get started. We&apos;ll pull real data and generate outreach for you.
                 </p>
               </div>
               <form
@@ -320,30 +318,8 @@ export function Onboarding() {
                   Research
                 </Button>
               </form>
-            </motion.div>
-          )}
-
-          {/* Step 3: Done */}
-          {step === 3 && (
-            <motion.div
-              key="done"
-              initial={{ opacity: 0, x: 40 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -40 }}
-              transition={{ duration: 0.25 }}
-              className="flex flex-col items-center gap-4 text-center"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Inbox className="size-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold">{titles[3]}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Your inbox will show leads you research and save. Use Discover to find companies matching your ICP, or research any company directly.
-                </p>
-              </div>
-              <Button onClick={dismiss} className="w-full">
-                Get started
+              <Button variant="ghost" onClick={dismiss} className="w-full">
+                Skip — go to inbox
               </Button>
             </motion.div>
           )}
@@ -357,7 +333,7 @@ export function Onboarding() {
             Back
           </Button>
         )}
-        {step < 3 && (
+        {step < 2 && (
           <Button variant="ghost" size="sm" onClick={() => setStep(step + 1)}>
             Skip step
           </Button>

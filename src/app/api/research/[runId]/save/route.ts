@@ -70,19 +70,43 @@ export async function POST(
     console.error("ICP scoring error:", e);
   }
 
-  // Create contacts
+  // Create contacts and attempt enrichment
   if (payload.contacts?.length) {
-    await prisma.contact.createMany({
-      data: payload.contacts.map((c) => ({
-        leadId: lead.id,
-        name: c.name,
-        title: c.title,
-        email: c.email,
-        phone: c.phone || null,
-        linkedin: c.linkedin || null,
-        decisionMakerScore: c.decisionMakerScore || 50,
-      })),
-    });
+    for (const c of payload.contacts) {
+      const contact = await prisma.contact.create({
+        data: {
+          leadId: lead.id,
+          name: c.name,
+          title: c.title,
+          email: c.email,
+          phone: c.phone || null,
+          linkedin: c.linkedin || null,
+          decisionMakerScore: c.decisionMakerScore || 50,
+        },
+      });
+
+      // Auto-enrich if email is a placeholder
+      if (c.email.includes("contact@")) {
+        try {
+          const { enrichContact } = await import("@/services/enrichment-service");
+          const enriched = await enrichContact(c.name, payload.domain);
+          if (enriched?.email) {
+            await prisma.contact.update({
+              where: { id: contact.id },
+              data: {
+                email: enriched.email,
+                phone: enriched.phone || contact.phone,
+                linkedin: enriched.linkedin || contact.linkedin,
+                enrichedAt: new Date(),
+                enrichmentSource: enriched.source,
+              },
+            });
+          }
+        } catch {
+          // Non-fatal: contact saved even if enrichment fails
+        }
+      }
+    }
   }
 
   // Create signals
