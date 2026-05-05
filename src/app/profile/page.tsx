@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUser } from "@/app/providers";
+import { useIndustry } from "@/hooks/use-industry";
 import { LogOut } from "lucide-react";
 
 const integrations = [
@@ -277,6 +278,7 @@ function PreferencesEditor() {
 }
 
 function ICPEditor() {
+  const { config } = useIndustry();
   const [industries, setIndustries] = useState("");
   const [sizeMin, setSizeMin] = useState<number>(0);
   const [sizeMax, setSizeMax] = useState<number>(0);
@@ -397,7 +399,7 @@ function ICPEditor() {
           <Input
             value={keySignals}
             onChange={(e) => setKeySignals(e.target.value)}
-            placeholder="Cloud migration, No CISO"
+            placeholder={config.keySignalPlaceholder}
           />
         </div>
         <div className="space-y-2">

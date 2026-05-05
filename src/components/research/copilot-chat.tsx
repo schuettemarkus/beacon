@@ -10,33 +10,6 @@ import {
   Sparkles,
 } from "lucide-react";
 
-function renderSimpleMarkdown(text: string): string {
-  return text
-    // Headers
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    // Bold
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    // Italic
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    // Inline code
-    .replace(/`(.+?)`/g, '<code>$1</code>')
-    // Unordered lists
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-    // Ordered lists
-    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-    // Links
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 hover:underline">$1</a>')
-    // Paragraphs (double newlines)
-    .replace(/\n\n/g, '</p><p>')
-    // Single newlines within paragraphs
-    .replace(/\n/g, '<br/>')
-    // Wrap in paragraph
-    .replace(/^(.+)$/, '<p>$1</p>');
-}
-
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -52,9 +25,10 @@ const SUGGESTED_PROMPTS = [
 export interface CopilotChatProps {
   company: string;
   researchRunId?: string;
+  industry?: string;
 }
 
-export function CopilotChat({ company, researchRunId }: CopilotChatProps) {
+export function CopilotChat({ company, researchRunId, industry }: CopilotChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -289,22 +263,13 @@ function ChatContent({
             className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-wrap ${
                 msg.role === "user"
-                  ? "bg-indigo-600 text-white whitespace-pre-wrap"
+                  ? "bg-indigo-600 text-white"
                   : "bg-gray-100 text-gray-800"
               }`}
             >
-              {msg.role === "assistant" ? (
-                <div
-                  className="prose prose-sm prose-gray max-w-none [&_p]:my-1 [&_ul]:my-1 [&_ol]:my-1 [&_li]:my-0.5 [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-medium [&_strong]:font-semibold [&_code]:text-xs [&_code]:bg-gray-200 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded"
-                  dangerouslySetInnerHTML={{
-                    __html: renderSimpleMarkdown(msg.content),
-                  }}
-                />
-              ) : (
-                msg.content
-              )}
+              {msg.content}
             </div>
           </motion.div>
         ))}

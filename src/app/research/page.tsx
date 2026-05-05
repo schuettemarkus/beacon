@@ -11,6 +11,7 @@ type ResearchResponse = CompanyResearchPayload & { researchRunId?: string };
 import { ResearchResults } from "@/components/research/research-results";
 import { ResearchSkeleton } from "@/components/research/research-skeleton";
 import { CopilotChat } from "@/components/research/copilot-chat";
+import { useIndustry } from "@/hooks/use-industry";
 
 const STORAGE_KEY = "beacon-recent-searches";
 
@@ -30,6 +31,7 @@ function saveSearch(query: string) {
 }
 
 export default function ResearchPage() {
+  const { industryId } = useIndustry();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -218,6 +220,7 @@ export default function ResearchPage() {
         <CopilotChat
           company={research.data.company}
           researchRunId={research.data.researchRunId}
+          industry={industryId}
         />
       )}
     </div>

@@ -13,6 +13,13 @@ import {
   UserCog,
   Newspaper,
   ExternalLink,
+  Pill,
+  FlaskConical,
+  Gavel,
+  FileCheck,
+  TrendingDown,
+  Zap,
+  AlertTriangle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -40,6 +47,19 @@ const typeIconMap: Record<string, LucideIcon> = {
   supply_chain: Link,
   exec_change: UserCog,
   news: Newspaper,
+  fda_action: Pill,
+  clinical_trial: FlaskConical,
+  compliance_fine: Gavel,
+  contract_award: FileCheck,
+  labor_law_change: Gavel,
+  workforce_trend: TrendingDown,
+  privacy_change: Shield,
+  platform_update: Zap,
+  court_ruling: Gavel,
+  law_firm_merger: Building2,
+  fraud_incident: AlertTriangle,
+  market_shift: TrendingUp,
+  hipaa_incident: ShieldAlert,
 };
 
 const severityBorderColors = {

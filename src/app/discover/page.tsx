@@ -8,14 +8,7 @@ import { Search, Sparkles, Loader2, ExternalLink, UserCheck } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-
-const examplePrompts = [
-  "Series B fintechs without a CISO doing cloud migration",
-  "Healthcare startups using AWS with 50-200 employees",
-  "E-commerce companies that recently raised Series A",
-  "SaaS companies with no security vendor in tech stack",
-  "Manufacturing firms migrating from on-prem to cloud",
-];
+import { useIndustry } from "@/hooks/use-industry";
 
 interface DiscoveryResult {
   name: string;
@@ -30,6 +23,8 @@ interface DiscoveryResult {
 }
 
 export default function DiscoverPage() {
+  const { config } = useIndustry();
+  const examplePrompts = config.exampleIcpPrompts;
   const [icp, setIcp] = useState("");
   const [results, setResults] = useState<DiscoveryResult[]>([]);
   const [loading, setLoading] = useState(false);

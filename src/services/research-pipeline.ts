@@ -4,7 +4,7 @@ import { fetchSECFilings } from "./data-sources/sec-edgar";
 import { fetchWikipediaInfo } from "./data-sources/wikipedia";
 import { findCVEsForTechStack } from "./data-sources/cisa-kev";
 import { fetchCVEsByProduct } from "./data-sources/nvd-cve";
-import { fetchCyberNews } from "./data-sources/news";
+import { fetchIndustryNews } from "./data-sources/news";
 import { getCompanyLogoUrl } from "./data-sources/clearbit-logo";
 import { getIndustryConfig } from "@/config/industries";
 import type { CompanyResearchPayload } from "./company-research";
@@ -42,7 +42,7 @@ export async function runResearchPipeline(
   const [wikiInfo, secFilings, news] = await Promise.all([
     fetchWikipediaInfo(query),
     fetchSECFilings(query),
-    fetchCyberNews(query),
+    fetchIndustryNews(query, config.newsKeywords),
   ]);
 
   // Infer domain from query

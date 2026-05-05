@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -34,6 +35,7 @@ import { ThreatSurface } from "@/components/leads/threat-surface";
 import { useLeadActions } from "@/hooks/use-lead-actions";
 import { AddNoteForm } from "@/components/leads/add-note-form";
 import { FitScoreBreakdown } from "@/components/leads/fit-score-breakdown";
+import { useIndustry } from "@/hooks/use-industry";
 
 function fitScoreColor(score: number) {
   if (score >= 80) return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
@@ -43,6 +45,8 @@ function fitScoreColor(score: number) {
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { config } = useIndustry();
+  const [imgError, setImgError] = useState(false);
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ["lead", id],
@@ -93,6 +97,14 @@ export default function LeadDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
+          {lead.logoUrl && !imgError && (
+            <img
+              src={lead.logoUrl}
+              alt={`${lead.company} logo`}
+              className="h-10 w-10 rounded-lg object-contain bg-white border"
+              onError={() => setImgError(true)}
+            />
+          )}
           <h1 className="text-2xl font-bold">{lead.company}</h1>
           <Badge variant="secondary">{lead.industry}</Badge>
           <Badge variant="outline" className={fitScoreColor(lead.fitScore)}>
@@ -120,7 +132,9 @@ export default function LeadDetailPage() {
       <Tabs defaultValue={defaultTab}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="threat-surface">Threat Surface</TabsTrigger>
+          <TabsTrigger value="threat-surface">
+            {config.useVulnSources ? "Threat Surface" : "Risk Signals"}
+          </TabsTrigger>
           <TabsTrigger value="people">People</TabsTrigger>
           <TabsTrigger value="signals">Signals</TabsTrigger>
           <TabsTrigger value="emails">Emails</TabsTrigger>
@@ -159,13 +173,30 @@ export default function LeadDetailPage() {
           </div>
         </TabsContent>
 
-        {/* Threat Surface */}
+        {/* Threat Surface / Risk Signals */}
         <TabsContent value="threat-surface">
           <div className="pt-4">
-            <ThreatSurface
-              techStack={lead.techStack || []}
-              signals={lead.signals || []}
-            />
+            {config.useVulnSources ? (
+              <ThreatSurface
+                techStack={lead.techStack || []}
+                signals={lead.signals || []}
+              />
+            ) : (
+              <div className="space-y-3">
+                {lead.signals
+                  ?.sort((a: any, b: any) => {
+                    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+                    return (severityOrder[a.severity as keyof typeof severityOrder] ?? 3) -
+                           (severityOrder[b.severity as keyof typeof severityOrder] ?? 3);
+                  })
+                  .map((signal: any) => (
+                    <SignalItem key={signal.id} signal={signal} />
+                  ))}
+                {(!lead.signals || lead.signals.length === 0) && (
+                  <p className="text-sm text-muted-foreground">No risk signals yet.</p>
+                )}
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -202,27 +233,27 @@ export default function LeadDetailPage() {
         {/* Emails */}
         <TabsContent value="emails">
           <div className="pt-4">
-            <Tabs defaultValue="cold_intro">
+            <Tabs defaultValue={config.emailVariants[0]?.id || "cold_intro"}>
               <TabsList>
-                <TabsTrigger value="cold_intro">Cold Intro</TabsTrigger>
-                <TabsTrigger value="threat_anchored">Threat-Anchored</TabsTrigger>
-                <TabsTrigger value="executive_brief">Executive Brief</TabsTrigger>
+                {config.emailVariants.map((v) => (
+                  <TabsTrigger key={v.id} value={v.id}>{v.label}</TabsTrigger>
+                ))}
               </TabsList>
 
-              {["cold_intro", "threat_anchored", "executive_brief"].map(
-                (variant) => (
-                  <TabsContent key={variant} value={variant}>
+              {config.emailVariants.map(
+                (v) => (
+                  <TabsContent key={v.id} value={v.id}>
                     <div className="space-y-4 pt-4">
                       {lead.emails
-                        ?.filter((e: any) => e.variant === variant)
+                        ?.filter((e: any) => e.variant === v.id)
                         .map((email: any) => (
                           <EmailPreview key={email.id} email={email} leadId={id} />
                         ))}
                       {(!lead.emails ||
-                        lead.emails.filter((e: any) => e.variant === variant)
+                        lead.emails.filter((e: any) => e.variant === v.id)
                           .length === 0) && (
                         <p className="text-sm text-muted-foreground">
-                          No {variant.replace("_", " ")} drafts available.
+                          No {v.label.toLowerCase()} drafts available.
                         </p>
                       )}
                     </div>

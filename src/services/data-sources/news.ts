@@ -5,9 +5,12 @@ export interface NewsItem {
   source?: string;
 }
 
-export async function fetchCyberNews(company: string): Promise<NewsItem[]> {
+export async function fetchIndustryNews(company: string, keywords?: string[]): Promise<NewsItem[]> {
   try {
-    const query = encodeURIComponent(`${company} cybersecurity OR breach OR security`);
+    const searchTerms = keywords && keywords.length > 0
+      ? `${company} ${keywords.join(" OR ")}`
+      : company;
+    const query = encodeURIComponent(searchTerms);
     const res = await fetch(
       `https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`
     );

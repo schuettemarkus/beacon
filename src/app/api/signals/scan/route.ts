@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { fetchCVEsByProduct } from "@/services/data-sources/nvd-cve";
 import { findCVEsForTechStack } from "@/services/data-sources/cisa-kev";
+import { fetchIndustryNews } from "@/services/data-sources/news";
+import { getIndustryConfig } from "@/config/industries";
 
 export async function POST(request: Request) {
   // Cron-only route: scans all leads for new vulnerability signals.
@@ -14,72 +16,116 @@ export async function POST(request: Request) {
     where: {
       status: { notIn: ["archived", "closed_won"] },
     },
-    select: { id: true, company: true, techStack: true },
+    select: { id: true, company: true, techStack: true, userId: true },
   });
 
   let newSignals = 0;
 
+  // Cache user → industry lookups to avoid repeated queries
+  const userIndustryCache = new Map<string, string>();
+
   for (const lead of leads) {
-    const techStack: string[] = JSON.parse(lead.techStack);
-    if (techStack.length === 0) continue;
-
-    // Check CISA KEV for known exploited vulns matching tech stack
-    const cisaVulns = await findCVEsForTechStack(techStack);
-
-    for (const vuln of cisaVulns.slice(0, 3)) {
-      // Check if we already have this signal
-      const existing = await prisma.signal.findFirst({
-        where: {
-          leadId: lead.id,
-          title: { contains: vuln.cveID },
-        },
+    // Look up the user's industry (cached)
+    let industry = userIndustryCache.get(lead.userId);
+    if (!industry) {
+      const user = await prisma.user.findUnique({
+        where: { id: lead.userId },
       });
-
-      if (!existing) {
-        await prisma.signal.create({
-          data: {
-            leadId: lead.id,
-            type: "tech_vuln",
-            severity: vuln.knownRansomwareCampaignUse === "Known" ? "critical" : "high",
-            source: "CISA KEV",
-            title: `${vuln.cveID}: ${vuln.vulnerabilityName}`,
-            body: vuln.shortDescription,
-            capturedAt: new Date(vuln.dateAdded),
-          },
-        });
-        newSignals++;
-      }
+      industry = (user as any)?.industry || "cybersecurity";
+      userIndustryCache.set(lead.userId, industry as string);
     }
 
-    // Also check NVD for the primary tech (rate-limited: 1 per lead)
-    if (techStack[0]) {
-      const nvdVulns = await fetchCVEsByProduct(techStack[0]);
-      for (const vuln of nvdVulns.slice(0, 2)) {
+    const config = getIndustryConfig(industry as string);
+    const techStack: string[] = JSON.parse(lead.techStack);
+
+    if (config.useVulnSources) {
+      // Run existing CISA/NVD scan for industries that use vuln sources
+      if (techStack.length === 0) continue;
+
+      // Check CISA KEV for known exploited vulns matching tech stack
+      const cisaVulns = await findCVEsForTechStack(techStack);
+
+      for (const vuln of cisaVulns.slice(0, 3)) {
         const existing = await prisma.signal.findFirst({
           where: {
             leadId: lead.id,
-            title: { contains: vuln.id },
+            title: { contains: vuln.cveID },
           },
         });
 
-        if (!existing && vuln.cvssScore >= 7.0) {
+        if (!existing) {
           await prisma.signal.create({
             data: {
               leadId: lead.id,
               type: "tech_vuln",
-              severity: vuln.cvssScore >= 9.0 ? "critical" : vuln.cvssScore >= 7.0 ? "high" : "medium",
-              source: "NVD",
-              title: `${vuln.id} (CVSS ${vuln.cvssScore})`,
-              body: vuln.description.slice(0, 500),
-              capturedAt: new Date(vuln.published),
+              severity: vuln.knownRansomwareCampaignUse === "Known" ? "critical" : "high",
+              source: "CISA KEV",
+              title: `${vuln.cveID}: ${vuln.vulnerabilityName}`,
+              body: vuln.shortDescription,
+              capturedAt: new Date(vuln.dateAdded),
             },
           });
           newSignals++;
         }
       }
 
-      // NVD rate limit: 5 req per 30s without API key
-      await new Promise((r) => setTimeout(r, 6500));
+      // Also check NVD for the primary tech (rate-limited: 1 per lead)
+      if (techStack[0]) {
+        const nvdVulns = await fetchCVEsByProduct(techStack[0]);
+        for (const vuln of nvdVulns.slice(0, 2)) {
+          const existing = await prisma.signal.findFirst({
+            where: {
+              leadId: lead.id,
+              title: { contains: vuln.id },
+            },
+          });
+
+          if (!existing && vuln.cvssScore >= 7.0) {
+            await prisma.signal.create({
+              data: {
+                leadId: lead.id,
+                type: "tech_vuln",
+                severity: vuln.cvssScore >= 9.0 ? "critical" : vuln.cvssScore >= 7.0 ? "high" : "medium",
+                source: "NVD",
+                title: `${vuln.id} (CVSS ${vuln.cvssScore})`,
+                body: vuln.description.slice(0, 500),
+                capturedAt: new Date(vuln.published),
+              },
+            });
+            newSignals++;
+          }
+        }
+
+        // NVD rate limit: 5 req per 30s without API key
+        await new Promise((r) => setTimeout(r, 6500));
+      }
+    } else {
+      // For non-vuln industries: fetch industry news and create signal records
+      const newsItems = await fetchIndustryNews(lead.company, config.newsKeywords);
+
+      for (const item of newsItems.slice(0, 5)) {
+        const existing = await prisma.signal.findFirst({
+          where: {
+            leadId: lead.id,
+            title: item.title,
+          },
+        });
+
+        if (!existing) {
+          await prisma.signal.create({
+            data: {
+              leadId: lead.id,
+              type: "news",
+              severity: "medium",
+              source: item.source || "Google News",
+              title: item.title,
+              body: item.title,
+              capturedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
+            },
+          });
+          newSignals++;
+        }
+      }
     }
   }
 
