@@ -33,6 +33,7 @@ import { EmailPreview } from "@/components/leads/email-preview";
 import { ThreatSurface } from "@/components/leads/threat-surface";
 import { useLeadActions } from "@/hooks/use-lead-actions";
 import { AddNoteForm } from "@/components/leads/add-note-form";
+import { FitScoreBreakdown } from "@/components/leads/fit-score-breakdown";
 
 function fitScoreColor(score: number) {
   if (score >= 80) return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
@@ -153,6 +154,8 @@ export default function LeadDetailPage() {
                 ))}
               </div>
             </div>
+
+            <FitScoreBreakdown leadId={id} />
           </div>
         </TabsContent>
 

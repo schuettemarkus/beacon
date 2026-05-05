@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DailyBriefing } from "@/components/inbox/daily-briefing";
@@ -9,6 +10,7 @@ import { LeadGroup } from "@/components/inbox/lead-group";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
 
 export default function InboxPage() {
+  const router = useRouter();
   const { data, isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: async () => {
@@ -54,6 +56,7 @@ export default function InboxPage() {
         <Button
           className="h-14 w-14 rounded-full shadow-lg"
           aria-label="Find me leads"
+          onClick={() => router.push("/discover")}
         >
           <Plus className="size-6" />
         </Button>

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateEmailVariants } from "@/services/email-generator";
+import { scoreLead } from "@/services/lead-scorer";
+import type { ICPProfile } from "@/services/lead-scorer";
 import type { CompanyResearchPayload } from "@/services/company-research";
 
 export async function POST(
@@ -38,6 +40,34 @@ export async function POST(
       logoUrl: `https://logo.clearbit.com/${payload.domain}`,
     },
   });
+
+  // Score against user's ICP if available
+  try {
+    const profile = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { icpProfile: true } as any,
+    });
+    if ((profile as any)?.icpProfile) {
+      const icp: ICPProfile = JSON.parse((profile as any).icpProfile);
+      const breakdown = scoreLead(
+        {
+          industry: payload.industry,
+          employees: payload.employees,
+          funding: payload.funding,
+          techStack: payload.techStack || [],
+          hq: payload.hq,
+          revenueBand: payload.revenueBand,
+        },
+        icp
+      );
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: { fitScore: breakdown.total },
+      });
+    }
+  } catch (e) {
+    console.error("ICP scoring error:", e);
+  }
 
   // Create contacts
   if (payload.contacts?.length) {

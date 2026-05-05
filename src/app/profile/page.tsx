@@ -1,6 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,31 +97,7 @@ export default function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="icp">
-          <Card className="p-6">
-            <h2 className="text-lg font-medium">Ideal Customer Profile</h2>
-            <Separator className="my-4" />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Target Industry</Label>
-                <Input defaultValue="Fintech, SaaS, Healthcare" readOnly />
-              </div>
-              <div className="space-y-2">
-                <Label>Company Size</Label>
-                <Input defaultValue="50-500 employees" readOnly />
-              </div>
-              <div className="space-y-2">
-                <Label>Funding Stage</Label>
-                <Input defaultValue="Series A - Series C" readOnly />
-              </div>
-              <div className="space-y-2">
-                <Label>Key Signals</Label>
-                <Input
-                  defaultValue="Cloud migration, No CISO, SOC 2"
-                  readOnly
-                />
-              </div>
-            </div>
-          </Card>
+          <ICPEditor />
         </TabsContent>
 
         <TabsContent value="integrations">
@@ -181,5 +160,165 @@ export default function ProfilePage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function ICPEditor() {
+  const [industries, setIndustries] = useState("");
+  const [sizeMin, setSizeMin] = useState<number>(0);
+  const [sizeMax, setSizeMax] = useState<number>(0);
+  const [fundingStages, setFundingStages] = useState("");
+  const [keySignals, setKeySignals] = useState("");
+  const [techStack, setTechStack] = useState("");
+  const [geoTargets, setGeoTargets] = useState("");
+
+  const { data: icp, isLoading } = useQuery({
+    queryKey: ["icp"],
+    queryFn: async () => {
+      const res = await fetch("/api/profile/icp");
+      if (!res.ok) throw new Error("Failed to fetch ICP");
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (icp) {
+      setIndustries((icp.industries || []).join(", "));
+      setSizeMin(icp.companySizeMin || 0);
+      setSizeMax(icp.companySizeMax || 0);
+      setFundingStages((icp.fundingStages || []).join(", "));
+      setKeySignals((icp.keySignals || []).join(", "));
+      setTechStack((icp.techStack || []).join(", "));
+      setGeoTargets((icp.geoTargets || []).join(", "));
+    }
+  }, [icp]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const parseList = (s: string) =>
+        s.split(",").map((v) => v.trim()).filter(Boolean);
+      const res = await fetch("/api/profile/icp", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          industries: parseList(industries),
+          companySizeMin: sizeMin,
+          companySizeMax: sizeMax,
+          fundingStages: parseList(fundingStages),
+          keySignals: parseList(keySignals),
+          techStack: parseList(techStack),
+          geoTargets: parseList(geoTargets),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save ICP");
+      return res.json();
+    },
+    onSuccess: () => toast.success("ICP profile saved"),
+    onError: () => toast.error("Failed to save ICP profile"),
+  });
+
+  const rescoreMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/leads/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ all: true }),
+      });
+      if (!res.ok) throw new Error("Failed to re-score leads");
+      return res.json();
+    },
+    onSuccess: (data) =>
+      toast.success(`Re-scored ${data.count ?? 0} leads`),
+    onError: () => toast.error("Failed to re-score leads"),
+  });
+
+  if (isLoading) {
+    return (
+      <Card className="p-6">
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-6">
+      <h2 className="text-lg font-medium">Ideal Customer Profile</h2>
+      <Separator className="my-4" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label>Industries (comma-separated)</Label>
+          <Input
+            value={industries}
+            onChange={(e) => setIndustries(e.target.value)}
+            placeholder="Fintech, SaaS, Healthcare"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Company Size</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              value={sizeMin || ""}
+              onChange={(e) => setSizeMin(Number(e.target.value))}
+              placeholder="Min"
+            />
+            <span className="text-sm text-muted-foreground">-</span>
+            <Input
+              type="number"
+              value={sizeMax || ""}
+              onChange={(e) => setSizeMax(Number(e.target.value))}
+              placeholder="Max"
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Funding Stages (comma-separated)</Label>
+          <Input
+            value={fundingStages}
+            onChange={(e) => setFundingStages(e.target.value)}
+            placeholder="Series A, Series B"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Key Signals (comma-separated)</Label>
+          <Input
+            value={keySignals}
+            onChange={(e) => setKeySignals(e.target.value)}
+            placeholder="Cloud migration, No CISO"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Tech Stack (comma-separated)</Label>
+          <Input
+            value={techStack}
+            onChange={(e) => setTechStack(e.target.value)}
+            placeholder="AWS, React, Kubernetes"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Geo Targets (comma-separated)</Label>
+          <Input
+            value={geoTargets}
+            onChange={(e) => setGeoTargets(e.target.value)}
+            placeholder="US, Europe, APAC"
+          />
+        </div>
+      </div>
+      <div className="mt-6 flex items-center gap-3">
+        <Button
+          onClick={() => saveMutation.mutate()}
+          disabled={saveMutation.isPending}
+        >
+          {saveMutation.isPending ? "Saving..." : "Save ICP Profile"}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => rescoreMutation.mutate()}
+          disabled={rescoreMutation.isPending}
+        >
+          {rescoreMutation.isPending ? "Scoring..." : "Re-score All Leads"}
+        </Button>
+      </div>
+    </Card>
   );
 }

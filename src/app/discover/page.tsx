@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Sparkles, Loader2, ExternalLink } from "lucide-react";
+import { Search, Sparkles, Loader2, ExternalLink, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -34,6 +35,37 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  const { data: icpData } = useQuery({
+    queryKey: ["icp"],
+    queryFn: async () => {
+      const res = await fetch("/api/profile/icp");
+      if (!res.ok) throw new Error("Failed to fetch ICP");
+      return res.json();
+    },
+  });
+
+  const hasIcp = icpData && (
+    (icpData.industries?.length > 0) ||
+    (icpData.companySizeMin > 0 || icpData.companySizeMax > 0) ||
+    (icpData.fundingStages?.length > 0) ||
+    (icpData.techStack?.length > 0) ||
+    (icpData.keySignals?.length > 0) ||
+    (icpData.geoTargets?.length > 0)
+  );
+
+  function fillFromIcp() {
+    if (!icpData) return;
+    const parts: string[] = [];
+    if (icpData.industries?.length) parts.push(icpData.industries.join(", ") + " companies");
+    if (icpData.companySizeMin || icpData.companySizeMax)
+      parts.push(`${icpData.companySizeMin || 0}-${icpData.companySizeMax || "?"} employees`);
+    if (icpData.fundingStages?.length) parts.push(icpData.fundingStages.join(", "));
+    if (icpData.techStack?.length) parts.push("using " + icpData.techStack.join(", "));
+    if (icpData.keySignals?.length) parts.push("showing " + icpData.keySignals.join(", ") + " signals");
+    if (icpData.geoTargets?.length) parts.push("in " + icpData.geoTargets.join(", "));
+    setIcp(parts.join(", "));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,6 +110,16 @@ export default function DiscoverPage() {
 
       {/* ICP Input */}
       <form onSubmit={handleSubmit} className="space-y-4">
+        {hasIcp && (
+          <button
+            type="button"
+            onClick={fillFromIcp}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 text-xs text-primary font-medium transition-colors"
+          >
+            <UserCheck className="h-3 w-3" />
+            Use my ICP
+          </button>
+        )}
         <textarea
           value={icp}
           onChange={(e) => setIcp(e.target.value)}
