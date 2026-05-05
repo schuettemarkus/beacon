@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Lead {
+  id           String    @id @default(cuid())
+  company      String
+  domain       String
+  industry     String
+  hq           String
+  employees    Int
+  revenueBand  String
+  techStack    String    // JSON array stored as string
+  funding      String
+  fitScore     Int
+  status       String    @default("today")
+  createdAt    DateTime  @default(now())
+  snoozedUntil DateTime?
+
+  contacts   Contact[]
+  signals    Signal[]
+  emails     Email[]
+  activities Activity[]
+  sequences  Sequence[]
+}
+
+model Contact {
+  id                String  @id @default(cuid())
+  leadId            String
+  name              String
+  title             String
+  email             String
+  phone             String?
+  linkedin          String?
+  decisionMakerScore Int
+
+  lead   Lead    @relation(fields: [leadId], references: [id])
+  emails Email[]
+}
+
+model Signal {
+  id         String   @id @default(cuid())
+  leadId     String
+  type       String
+  severity   String
+  source     String
+  title      String
+  body       String
+  capturedAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id])
+}
+
+model Email {
+  id                 String   @id @default(cuid())
+  leadId             String
+  contactId          String
+  variant            String
+  subject            String
+  preview            String
+  body               String
+  predictedOpenRate  Float
+  predictedReplyRate Float
+  sentAt             DateTime?
+
+  lead    Lead    @relation(fields: [leadId], references: [id])
+  contact Contact @relation(fields: [contactId], references: [id])
+}
+
+model Sequence {
+  id      String @id @default(cuid())
+  leadId  String
+  steps   String // JSON
+  status  String @default("draft")
+  metrics String? // JSON
+
+  lead Lead @relation(fields: [leadId], references: [id])
+}
+
+model Activity {
+  id      String   @id @default(cuid())
+  leadId  String
+  kind    String
+  payload String   // JSON
+  at      DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id])
+}
+
+model ResearchRun {
+  id            String   @id @default(cuid())
+  query         String
+  payload       String   // JSON
+  createdAt     DateTime @default(now())
+  savedAsLeadId String?
+
+  chatThreads ChatThread[]
+}
+
+model ChatThread {
+  id            String   @id @default(cuid())
+  researchRunId String
+  messages      String   // JSON
+  updatedAt     DateTime @default(now())
+
+  researchRun ResearchRun @relation(fields: [researchRunId], references: [id])
+}

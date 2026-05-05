@@ -1,0 +1,310 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "framer-motion";
+import {
+  Mail,
+  Clock,
+  Archive,
+  Globe,
+  MapPin,
+  Users,
+  DollarSign,
+  Landmark,
+  Cpu,
+  Activity,
+  ArrowLeft,
+} from "lucide-react";
+import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
+import { ContactCard } from "@/components/leads/contact-card";
+import { SignalItem } from "@/components/leads/signal-item";
+import { EmailPreview } from "@/components/leads/email-preview";
+import { ThreatSurface } from "@/components/leads/threat-surface";
+
+async function fetchLead(id: string) {
+  const res = await fetch(`/api/leads/${id}`);
+  if (!res.ok) throw new Error("Failed to fetch lead");
+  return res.json();
+}
+
+function fitScoreColor(score: number) {
+  if (score >= 80) return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
+  if (score >= 60) return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+  return "bg-red-500/10 text-red-600 border-red-500/20";
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6 p-6">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-6 w-20" />
+      </div>
+      <div className="flex gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 w-24" />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function LeadDetailPage() {
+  const { id } = useParams<{ id: string }>();
+
+  const { data: lead, isLoading, error } = useQuery({
+    queryKey: ["lead", id],
+    queryFn: () => fetchLead(id),
+    enabled: !!id,
+  });
+
+  if (isLoading) {
+    return <LoadingSkeleton />;
+  }
+
+  if (error || !lead) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <p className="text-muted-foreground">Lead not found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="mx-auto max-w-6xl space-y-6 p-4 md:p-6"
+    >
+      {/* Back link */}
+      <Link
+        href="/leads"
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-3 w-3" />
+        Back to leads
+      </Link>
+
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">{lead.company}</h1>
+          <Badge variant="secondary">{lead.industry}</Badge>
+          <Badge variant="outline" className={fitScoreColor(lead.fitScore)}>
+            Fit: {lead.fitScore}
+          </Badge>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button size="sm" className="gap-1.5">
+            <Mail className="h-3.5 w-3.5" />
+            Email
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            Snooze
+          </Button>
+          <Button size="sm" variant="outline" className="gap-1.5">
+            <Archive className="h-3.5 w-3.5" />
+            Archive
+          </Button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="overview">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="threat-surface">Threat Surface</TabsTrigger>
+          <TabsTrigger value="people">People</TabsTrigger>
+          <TabsTrigger value="signals">Signals</TabsTrigger>
+          <TabsTrigger value="emails">Emails</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+        </TabsList>
+
+        {/* Overview */}
+        <TabsContent value="overview">
+          <div className="space-y-6 pt-4">
+            {/* Firmographics Grid */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <FirmographicCard icon={MapPin} label="Headquarters" value={lead.hq} />
+              <FirmographicCard icon={Users} label="Employees" value={lead.employees?.toLocaleString()} />
+              <FirmographicCard icon={DollarSign} label="Revenue" value={lead.revenueBand} />
+              <FirmographicCard icon={Landmark} label="Funding" value={lead.funding} />
+              <FirmographicCard icon={Globe} label="Domain" value={lead.domain} />
+              <FirmographicCard icon={Activity} label="Status" value={lead.status} />
+            </div>
+
+            {/* Tech Stack */}
+            <div className="space-y-2">
+              <h3 className="flex items-center gap-2 text-sm font-medium">
+                <Cpu className="h-4 w-4 text-muted-foreground" />
+                Tech Stack
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {lead.techStack?.map((tech: string) => (
+                  <Badge key={tech} variant="secondary">
+                    {tech}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Threat Surface */}
+        <TabsContent value="threat-surface">
+          <div className="pt-4">
+            <ThreatSurface
+              techStack={lead.techStack || []}
+              signals={lead.signals || []}
+            />
+          </div>
+        </TabsContent>
+
+        {/* People */}
+        <TabsContent value="people">
+          <div className="grid grid-cols-1 gap-4 pt-4 lg:grid-cols-2">
+            {lead.contacts?.map((contact: any) => (
+              <ContactCard key={contact.id} contact={contact} />
+            ))}
+            {(!lead.contacts || lead.contacts.length === 0) && (
+              <p className="text-sm text-muted-foreground">No contacts found.</p>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Signals */}
+        <TabsContent value="signals">
+          <div className="space-y-3 pt-4">
+            {lead.signals
+              ?.sort(
+                (a: any, b: any) =>
+                  new Date(b.capturedAt).getTime() -
+                  new Date(a.capturedAt).getTime()
+              )
+              .map((signal: any) => (
+                <SignalItem key={signal.id} signal={signal} />
+              ))}
+            {(!lead.signals || lead.signals.length === 0) && (
+              <p className="text-sm text-muted-foreground">No signals yet.</p>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Emails */}
+        <TabsContent value="emails">
+          <div className="pt-4">
+            <Tabs defaultValue="cold_intro">
+              <TabsList>
+                <TabsTrigger value="cold_intro">Cold Intro</TabsTrigger>
+                <TabsTrigger value="threat_anchored">Threat-Anchored</TabsTrigger>
+                <TabsTrigger value="executive_brief">Executive Brief</TabsTrigger>
+              </TabsList>
+
+              {["cold_intro", "threat_anchored", "executive_brief"].map(
+                (variant) => (
+                  <TabsContent key={variant} value={variant}>
+                    <div className="space-y-4 pt-4">
+                      {lead.emails
+                        ?.filter((e: any) => e.variant === variant)
+                        .map((email: any) => (
+                          <EmailPreview key={email.id} email={email} />
+                        ))}
+                      {(!lead.emails ||
+                        lead.emails.filter((e: any) => e.variant === variant)
+                          .length === 0) && (
+                        <p className="text-sm text-muted-foreground">
+                          No {variant.replace("_", " ")} drafts available.
+                        </p>
+                      )}
+                    </div>
+                  </TabsContent>
+                )
+              )}
+            </Tabs>
+          </div>
+        </TabsContent>
+
+        {/* Activity */}
+        <TabsContent value="activity">
+          <div className="space-y-4 pt-4">
+            {lead.activities
+              ?.sort(
+                (a: any, b: any) =>
+                  new Date(b.createdAt || b.date).getTime() -
+                  new Date(a.createdAt || a.date).getTime()
+              )
+              .map((activity: any, i: number) => (
+                <div
+                  key={activity.id || i}
+                  className="flex items-start gap-3 border-l-2 border-muted pl-4"
+                >
+                  <div className="mt-1 h-2 w-2 -ml-[21px] rounded-full bg-primary" />
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-medium">{activity.type || activity.action}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {activity.description || activity.note}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(
+                        activity.createdAt || activity.date
+                      ).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            {(!lead.activities || lead.activities.length === 0) && (
+              <p className="text-sm text-muted-foreground">No activity yet.</p>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </motion.div>
+  );
+}
+
+function FirmographicCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: any;
+  label: string;
+  value?: string;
+}) {
+  return (
+    <Card size="sm">
+      <CardContent className="flex items-center gap-3 px-4 py-3">
+        <div className="rounded-md bg-muted p-2">
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            {label}
+          </p>
+          <p className="text-sm font-medium">{value || "N/A"}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
