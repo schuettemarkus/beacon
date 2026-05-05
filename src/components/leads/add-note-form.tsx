@@ -28,23 +28,36 @@ export function AddNoteForm({ leadId }: { leadId: string }) {
     },
   });
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (text.trim() && !addNote.isPending) addNote.mutate();
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      if (text.trim() && !addNote.isPending) addNote.mutate();
+    }
+  }
+
   return (
-    <div className="space-y-2">
+    <form onSubmit={handleSubmit} className="space-y-2">
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Add a note about this lead..."
+        onKeyDown={handleKeyDown}
+        placeholder="Add a note about this lead... (Cmd+Enter to save)"
         className="min-h-[80px] text-sm resize-none"
       />
       <Button
+        type="submit"
         size="sm"
         disabled={!text.trim() || addNote.isPending}
-        onClick={() => addNote.mutate()}
         className="gap-1.5"
       >
         <MessageSquare className="h-3.5 w-3.5" />
         {addNote.isPending ? "Saving..." : "Add Note"}
       </Button>
-    </div>
+    </form>
   );
 }
