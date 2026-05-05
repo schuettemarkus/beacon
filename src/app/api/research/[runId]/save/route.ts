@@ -16,10 +16,10 @@ export async function POST(
 
   const { runId } = await params;
 
-  // Get the research run
-  const run = await prisma.researchRun.findUnique({ where: { id: runId } });
+  // Get the research run (verify ownership)
+  const run = await prisma.researchRun.findFirst({ where: { id: runId, userId: user.id } });
   if (!run) {
-    return NextResponse.json({ error: "Research run not found" }, { status: 404 });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   const payload: CompanyResearchPayload = JSON.parse(run.payload);
@@ -27,6 +27,7 @@ export async function POST(
   // Create the lead
   const lead = await prisma.lead.create({
     data: {
+      userId: user.id,
       company: payload.company,
       domain: payload.domain,
       industry: payload.industry,

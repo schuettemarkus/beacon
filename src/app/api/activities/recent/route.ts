@@ -7,6 +7,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const activities = await prisma.activity.findMany({
+    where: { lead: { userId: session.id } },
     orderBy: { at: "desc" },
     take: 50,
     include: { lead: { select: { company: true } } },

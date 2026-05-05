@@ -11,11 +11,24 @@ async function main() {
     return
   }
 
+  // Ensure a seed user exists
+  const seedUser = await prisma.user.upsert({
+    where: { email: 'demo@beacon.app' },
+    update: {},
+    create: {
+      id: 'seed-user-001',
+      name: 'Demo User',
+      email: 'demo@beacon.app',
+      password: '$2b$10$placeholder', // not a real login
+    },
+  })
+
   // Seed leads
   for (const lead of leads) {
     await prisma.lead.create({
       data: {
         id: lead.id,
+        userId: seedUser.id,
         company: lead.company,
         domain: lead.domain,
         industry: lead.industry,

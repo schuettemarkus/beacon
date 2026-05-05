@@ -21,12 +21,23 @@ export async function POST(
     );
   }
 
-  // Verify cadence exists
-  const cadence = await prisma.cadence.findUnique({
-    where: { id: cadenceId },
+  // Verify cadence ownership
+  const cadence = await prisma.cadence.findFirst({
+    where: { id: cadenceId, userId: user.id },
   });
   if (!cadence) {
-    return NextResponse.json({ error: "Cadence not found" }, { status: 404 });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Verify all leads belong to the user
+  const userLeads = await prisma.lead.findMany({
+    where: { id: { in: leadIds }, userId: user.id },
+    select: { id: true },
+  });
+  const userLeadIds = new Set(userLeads.map((l: { id: string }) => l.id));
+  const invalidIds = leadIds.filter((lid: string) => !userLeadIds.has(lid));
+  if (invalidIds.length > 0) {
+    return NextResponse.json({ error: "Some leads not found" }, { status: 404 });
   }
 
   // Create enrollments and log activity for each lead

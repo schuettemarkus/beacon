@@ -8,6 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const cadences = await prisma.cadence.findMany({
+    where: { userId: user.id },
     include: { _count: { select: { enrollments: true } } },
     orderBy: { createdAt: "desc" },
   });
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
 
   const cadence = await prisma.cadence.create({
     data: {
+      userId: user.id,
       name,
       description: description || null,
       steps: stepsStr,

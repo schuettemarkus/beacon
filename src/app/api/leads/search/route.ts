@@ -13,6 +13,7 @@ export async function GET(request: Request) {
 
   const leads = await prisma.lead.findMany({
     where: {
+      userId: user.id,
       OR: [
         { company: { contains: q } },
         { industry: { contains: q } },

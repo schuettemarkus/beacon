@@ -27,6 +27,7 @@ model Session {
 
 model Lead {
   id           String    @id @default(cuid())
+  userId       String
   company      String
   domain       String
   industry     String
@@ -116,6 +117,7 @@ model Activity {
 
 model Cadence {
   id          String       @id @default(cuid())
+  userId      String
   name        String
   description String?
   steps       String       // JSON: [{type, label, days?, emailVariant?}]
@@ -142,6 +144,7 @@ model Enrollment {
 
 model ResearchRun {
   id            String   @id @default(cuid())
+  userId        String
   query         String
   payload       String   // JSON
   createdAt     DateTime @default(now())

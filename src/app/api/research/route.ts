@@ -19,6 +19,7 @@ export async function POST(request: Request) {
     // Save the research run
     const run = await prisma.researchRun.create({
       data: {
+        userId: user.id,
         query,
         payload: JSON.stringify(payload),
       },

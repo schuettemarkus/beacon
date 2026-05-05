@@ -13,8 +13,9 @@ export async function PATCH(
   const { id } = await params;
   const { dealStage, dealValue } = await request.json();
 
-  // Get current stage for activity log
-  const current = await prisma.lead.findUnique({ where: { id }, select: { dealStage: true } });
+  // Verify ownership
+  const current = await prisma.lead.findFirst({ where: { id, userId: user.id }, select: { dealStage: true } });
+  if (!current) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const data: any = {};
   if (dealStage !== undefined) data.dealStage = dealStage;

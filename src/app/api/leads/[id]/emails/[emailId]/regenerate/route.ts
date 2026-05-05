@@ -12,16 +12,16 @@ export async function POST(
 
   const { id, emailId } = await params;
 
+  // Verify lead ownership
+  const lead = await prisma.lead.findFirst({
+    where: { id, userId: user.id },
+    include: { contacts: true, signals: true },
+  });
+  if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   // Load the email to know the variant
   const email = await prisma.email.findUnique({ where: { id: emailId } });
   if (!email) return NextResponse.json({ error: "Email not found" }, { status: 404 });
-
-  // Load the lead with signals for context
-  const lead = await prisma.lead.findUnique({
-    where: { id },
-    include: { contacts: true, signals: true },
-  });
-  if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
   // Find the contact for this email
   const contact = await prisma.contact.findUnique({ where: { id: email.contactId } });

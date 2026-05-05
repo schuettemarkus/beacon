@@ -10,6 +10,11 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+
+  // Verify lead ownership
+  const lead = await prisma.lead.findFirst({ where: { id, userId: user.id } });
+  if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const emails = await prisma.email.findMany({
     where: { leadId: id },
     include: { contact: true },

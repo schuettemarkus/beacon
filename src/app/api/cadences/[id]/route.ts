@@ -12,8 +12,8 @@ export async function GET(
 
   const { id } = await params;
 
-  const cadence = await prisma.cadence.findUnique({
-    where: { id },
+  const cadence = await prisma.cadence.findFirst({
+    where: { id, userId: user.id },
     include: {
       enrollments: {
         include: {
@@ -32,7 +32,7 @@ export async function GET(
   });
 
   if (!cadence) {
-    return NextResponse.json({ error: "Cadence not found" }, { status: 404 });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   return NextResponse.json(cadence);
@@ -47,6 +47,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+
+  // Verify ownership
+  const existing = await prisma.cadence.findFirst({ where: { id, userId: user.id } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const body = await request.json();
 
   const data: Record<string, unknown> = {};
@@ -76,6 +81,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+
+  // Verify ownership
+  const existing = await prisma.cadence.findFirst({ where: { id, userId: user.id } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Delete enrollments first, then the cadence
   await prisma.enrollment.deleteMany({ where: { cadenceId: id } });

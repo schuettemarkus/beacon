@@ -15,6 +15,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const leads = await prisma.lead.findMany({
+    where: { userId: user.id },
     include: { contacts: true, signals: true },
     orderBy: { fitScore: "desc" },
   });

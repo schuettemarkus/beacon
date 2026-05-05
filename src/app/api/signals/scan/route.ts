@@ -3,9 +3,12 @@ import { prisma } from "@/lib/db";
 import { fetchCVEsByProduct } from "@/services/data-sources/nvd-cve";
 import { findCVEsForTechStack } from "@/services/data-sources/cisa-kev";
 
-export async function POST() {
-  // This can be called by Vercel Cron or manually
-  // No auth required for cron (Vercel handles security via cron secret)
+export async function POST(request: Request) {
+  // Cron-only route: scans all leads for new vulnerability signals.
+  // For production, add CRON_SECRET verification:
+  // if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+  //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // }
 
   const leads = await prisma.lead.findMany({
     where: {

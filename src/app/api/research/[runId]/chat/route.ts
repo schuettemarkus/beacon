@@ -22,10 +22,10 @@ export async function POST(
     });
   }
 
-  // Get the research run for context
-  const run = await prisma.researchRun.findUnique({ where: { id: runId } });
+  // Get the research run for context (verify ownership)
+  const run = await prisma.researchRun.findFirst({ where: { id: runId, userId: user.id } });
   if (!run) {
-    return new Response(JSON.stringify({ error: "Research run not found" }), {
+    return new Response(JSON.stringify({ error: "Not found" }), {
       status: 404,
     });
   }

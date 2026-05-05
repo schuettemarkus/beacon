@@ -23,11 +23,11 @@ export async function POST(request: Request) {
 
   if (body.leadId) {
     // Score a single lead
-    const lead = await prisma.lead.findUnique({
-      where: { id: body.leadId },
+    const lead = await prisma.lead.findFirst({
+      where: { id: body.leadId, userId: session.id },
       include: { signals: true },
     });
-    if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const breakdown = scoreLead(
       { ...lead, techStack: JSON.parse(lead.techStack), signals: lead.signals },
@@ -43,8 +43,8 @@ export async function POST(request: Request) {
   }
 
   if (body.all) {
-    // Re-score all leads
-    const leads = await prisma.lead.findMany({ include: { signals: true } });
+    // Re-score all leads (user's leads only)
+    const leads = await prisma.lead.findMany({ where: { userId: session.id }, include: { signals: true } });
     let updated = 0;
 
     for (const lead of leads) {

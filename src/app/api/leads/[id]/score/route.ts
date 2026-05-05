@@ -17,12 +17,12 @@ export async function GET(
     select: { icpProfile: true },
   });
 
-  const lead = await prisma.lead.findUnique({
-    where: { id },
+  const lead = await prisma.lead.findFirst({
+    where: { id, userId: session.id },
     include: { signals: true },
   });
 
-  if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   if (!user?.icpProfile) {
     return NextResponse.json({

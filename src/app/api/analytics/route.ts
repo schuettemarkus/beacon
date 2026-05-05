@@ -7,21 +7,24 @@ export async function GET() {
   if (!user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Leads by status
+  // Leads by status (user's leads only)
   const leadsByStatus = await prisma.lead.groupBy({
     by: ["status"],
+    where: { userId: user.id },
     _count: { id: true },
   });
 
   // Leads by deal stage
   const leadsByStage = await prisma.lead.groupBy({
     by: ["dealStage"],
+    where: { userId: user.id },
     _count: { id: true },
   });
 
   // Fit score distribution
   const allLeads = await prisma.lead.findMany({
-    select: { fitScore: true, createdAt: true, industry: true },
+    where: { userId: user.id },
+    select: { id: true, fitScore: true, createdAt: true, industry: true },
   });
 
   const fitScoreDistribution = [
@@ -58,9 +61,13 @@ export async function GET() {
     });
   }
 
-  // Emails by variant
+  // Get user's lead IDs for filtering related models
+  const userLeadIds = allLeads.map((l) => l.id);
+
+  // Emails by variant (user's leads only)
   const emailsByVariant = await prisma.email.groupBy({
     by: ["variant"],
+    where: { leadId: { in: userLeadIds } },
     _count: { id: true },
     _avg: { predictedOpenRate: true, predictedReplyRate: true },
   });
@@ -76,12 +83,12 @@ export async function GET() {
     .slice(0, 8)
     .map(([name, count]) => ({ name, count }));
 
-  // Totals
+  // Totals (scoped to user's leads)
   const totalLeads = allLeads.length;
-  const totalContacts = await prisma.contact.count();
-  const totalSignals = await prisma.signal.count();
-  const totalEmails = await prisma.email.count();
-  const totalResearchRuns = await prisma.researchRun.count();
+  const totalContacts = await prisma.contact.count({ where: { leadId: { in: userLeadIds } } });
+  const totalSignals = await prisma.signal.count({ where: { leadId: { in: userLeadIds } } });
+  const totalEmails = await prisma.email.count({ where: { leadId: { in: userLeadIds } } });
+  const totalResearchRuns = await prisma.researchRun.count({ where: { userId: user.id } });
 
   return NextResponse.json({
     totals: { totalLeads, totalContacts, totalSignals, totalEmails, totalResearchRuns },

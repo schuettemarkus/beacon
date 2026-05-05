@@ -7,6 +7,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const leads = await prisma.lead.findMany({
+    where: { userId: user.id },
     include: { contacts: true, signals: true, emails: true },
     orderBy: { fitScore: "desc" },
   });
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
 
   const lead = await prisma.lead.create({
     data: {
+      userId: user.id,
       company: body.company,
       domain: body.domain,
       industry: body.industry || "Unknown",

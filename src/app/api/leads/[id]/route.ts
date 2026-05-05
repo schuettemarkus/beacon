@@ -10,13 +10,13 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const lead = await prisma.lead.findUnique({
-    where: { id },
+  const lead = await prisma.lead.findFirst({
+    where: { id, userId: user.id },
     include: { contacts: true, signals: true, emails: true, activities: true },
   });
 
   if (!lead) {
-    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
   return NextResponse.json({
@@ -33,6 +33,11 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+
+  // Verify ownership
+  const existing = await prisma.lead.findFirst({ where: { id, userId: user.id } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
   const body = await request.json();
 
   const data: any = {};
@@ -55,6 +60,10 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+
+  // Verify ownership
+  const existing = await prisma.lead.findFirst({ where: { id, userId: user.id } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   // Delete related records first
   await prisma.email.deleteMany({ where: { leadId: id } });
