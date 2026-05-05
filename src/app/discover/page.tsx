@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -22,6 +22,25 @@ interface DiscoveryResult {
   verified: boolean;
 }
 
+function buildIcpDescription(icpData: any): string {
+  const parts: string[] = [];
+  if (icpData.industries?.length)
+    parts.push(icpData.industries.join(", ") + " companies");
+  if (icpData.companySizeMin || icpData.companySizeMax)
+    parts.push(
+      `${icpData.companySizeMin || 0}-${icpData.companySizeMax || "?"} employees`
+    );
+  if (icpData.fundingStages?.length)
+    parts.push(icpData.fundingStages.join(", "));
+  if (icpData.techStack?.length)
+    parts.push("using " + icpData.techStack.join(", "));
+  if (icpData.keySignals?.length)
+    parts.push("showing " + icpData.keySignals.join(", ") + " signals");
+  if (icpData.geoTargets?.length)
+    parts.push("in " + icpData.geoTargets.join(", "));
+  return parts.join(", ");
+}
+
 export default function DiscoverPage() {
   const { config } = useIndustry();
   const examplePrompts = config.exampleIcpPrompts;
@@ -30,8 +49,9 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const autoRanRef = useRef(false);
 
-  const { data: icpData } = useQuery({
+  const { data: icpData, isLoading: icpLoading } = useQuery({
     queryKey: ["icp"],
     queryFn: async () => {
       const res = await fetch("/api/profile/icp");
@@ -40,31 +60,28 @@ export default function DiscoverPage() {
     },
   });
 
-  const hasIcp = icpData && (
-    (icpData.industries?.length > 0) ||
-    (icpData.companySizeMin > 0 || icpData.companySizeMax > 0) ||
-    (icpData.fundingStages?.length > 0) ||
-    (icpData.techStack?.length > 0) ||
-    (icpData.keySignals?.length > 0) ||
-    (icpData.geoTargets?.length > 0)
-  );
+  const hasIcp =
+    icpData &&
+    ((icpData.industries?.length > 0) ||
+      (icpData.companySizeMin > 0 || icpData.companySizeMax > 0) ||
+      (icpData.fundingStages?.length > 0) ||
+      (icpData.techStack?.length > 0) ||
+      (icpData.keySignals?.length > 0) ||
+      (icpData.geoTargets?.length > 0));
 
-  function fillFromIcp() {
-    if (!icpData) return;
-    const parts: string[] = [];
-    if (icpData.industries?.length) parts.push(icpData.industries.join(", ") + " companies");
-    if (icpData.companySizeMin || icpData.companySizeMax)
-      parts.push(`${icpData.companySizeMin || 0}-${icpData.companySizeMax || "?"} employees`);
-    if (icpData.fundingStages?.length) parts.push(icpData.fundingStages.join(", "));
-    if (icpData.techStack?.length) parts.push("using " + icpData.techStack.join(", "));
-    if (icpData.keySignals?.length) parts.push("showing " + icpData.keySignals.join(", ") + " signals");
-    if (icpData.geoTargets?.length) parts.push("in " + icpData.geoTargets.join(", "));
-    setIcp(parts.join(", "));
-  }
+  // Auto-discover when ICP data loads and user hasn't searched yet
+  useEffect(() => {
+    if (autoRanRef.current || icpLoading || !hasIcp || results.length > 0)
+      return;
+    autoRanRef.current = true;
+    const description = buildIcpDescription(icpData);
+    if (description) {
+      setIcp(description);
+      runDiscovery(description);
+    }
+  }, [icpData, icpLoading, hasIcp, results.length]);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!icp.trim()) return;
+  async function runDiscovery(query: string) {
     setLoading(true);
     setError("");
     setResults([]);
@@ -73,7 +90,7 @@ export default function DiscoverPage() {
       const res = await fetch("/api/discover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ icp: icp.trim() }),
+        body: JSON.stringify({ icp: query }),
       });
 
       if (!res.ok) {
@@ -90,8 +107,16 @@ export default function DiscoverPage() {
     }
   }
 
-  function handleChipClick(prompt: string) {
-    setIcp(prompt);
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!icp.trim()) return;
+    runDiscovery(icp.trim());
+  }
+
+  function fillFromIcp() {
+    if (!icpData) return;
+    const description = buildIcpDescription(icpData);
+    setIcp(description);
   }
 
   return (
@@ -99,13 +124,15 @@ export default function DiscoverPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Discover Leads</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Describe your ideal customer and let AI find real companies that match.
+          {hasIcp
+            ? "Showing companies matching your ICP. Refine your search below."
+            : "Describe your ideal customer and let AI find real companies that match."}
         </p>
       </div>
 
       {/* ICP Input */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {hasIcp && (
+        {hasIcp && !loading && (
           <button
             type="button"
             onClick={fillFromIcp}
@@ -123,7 +150,11 @@ export default function DiscoverPage() {
         />
 
         <div className="flex items-center gap-3">
-          <Button type="submit" disabled={loading || !icp.trim()} className="gap-2">
+          <Button
+            type="submit"
+            disabled={loading || !icp.trim()}
+            className="gap-2"
+          >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -134,7 +165,7 @@ export default function DiscoverPage() {
         </div>
       </form>
 
-      {/* Example prompts */}
+      {/* Example prompts — only show when no results and not loading */}
       {results.length === 0 && !loading && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -144,7 +175,10 @@ export default function DiscoverPage() {
             {examplePrompts.map((prompt) => (
               <button
                 key={prompt}
-                onClick={() => handleChipClick(prompt)}
+                onClick={() => {
+                  setIcp(prompt);
+                  runDiscovery(prompt);
+                }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted hover:bg-primary/10 hover:text-primary text-xs text-muted-foreground transition-colors"
               >
                 <Search className="h-3 w-3" />
@@ -155,10 +189,7 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <p className="text-sm text-destructive">{error}</p>
-      )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
 
       {/* Results */}
       <AnimatePresence>
@@ -204,7 +235,8 @@ export default function DiscoverPage() {
                       <p className="text-xs text-muted-foreground mb-2">
                         {result.industry}
                         {result.hq && ` · ${result.hq}`}
-                        {result.employees > 0 && ` · ${result.employees.toLocaleString()} employees`}
+                        {result.employees > 0 &&
+                          ` · ${result.employees.toLocaleString()} employees`}
                       </p>
 
                       {result.description && (
@@ -215,7 +247,11 @@ export default function DiscoverPage() {
 
                       <div className="flex flex-wrap gap-1.5">
                         {result.reasons.map((reason, j) => (
-                          <Badge key={j} variant="outline" className="text-[10px] font-normal">
+                          <Badge
+                            key={j}
+                            variant="outline"
+                            className="text-[10px] font-normal"
+                          >
                             {reason}
                           </Badge>
                         ))}
@@ -226,7 +262,11 @@ export default function DiscoverPage() {
                       size="sm"
                       variant="outline"
                       className="shrink-0 gap-1.5"
-                      onClick={() => router.push(`/research?q=${encodeURIComponent(result.name)}`)}
+                      onClick={() =>
+                        router.push(
+                          `/research?q=${encodeURIComponent(result.name)}`
+                        )
+                      }
                     >
                       <ExternalLink className="h-3.5 w-3.5" />
                       Research
