@@ -11,10 +11,18 @@ import type { CompanyResearchPayload } from "./company-research";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
+export interface SellerContext {
+  company: string;
+  products: string[];
+  valueProps: string;
+  territory?: { type: string; states?: string[]; description?: string };
+}
+
 export async function runResearchPipeline(
   query: string,
   userId?: string,
-  industry: string = "cybersecurity"
+  industry: string = "cybersecurity",
+  sellerProfile?: SellerContext
 ): Promise<CompanyResearchPayload> {
   const config = getIndustryConfig(industry);
 
@@ -61,7 +69,7 @@ export async function runResearchPipeline(
     : [[], []];
 
   // Step 3: Send all raw data to Claude for structured synthesis
-  const rawData = {
+  const rawData: Record<string, any> = {
     query,
     wikipedia: wikiInfo,
     secFilings: secFilings.slice(0, 5),
@@ -80,6 +88,15 @@ export async function runResearchPipeline(
     keyRegulations: config.keyRegulations,
   };
 
+  if (sellerProfile) {
+    rawData.sellerContext = {
+      company: sellerProfile.company,
+      products: sellerProfile.products,
+      valueProps: sellerProfile.valueProps,
+      territory: sellerProfile.territory,
+    };
+  }
+
   const payload = await synthesizeWithClaude(rawData);
   payload.logoUrl = logoUrl;
   return payload;
@@ -93,7 +110,12 @@ async function synthesizeWithClaude(
   const regulationsStr = (rawData.keyRegulations || []).join(", ");
   const industryDisplay = rawData.industryContext || "Cybersecurity";
 
-  const systemPrompt = `You are a ${rawData.analystRole || "cybersecurity sales intelligence analyst"}. Given raw data about a company from SEC filings, Wikipedia, vulnerability databases, and news, produce a detailed structured JSON analysis.
+  const sellerCtx = rawData.sellerContext;
+  const sellerInsert = sellerCtx
+    ? `\nYou are researching this company on behalf of a salesperson at ${sellerCtx.company} who sells ${(sellerCtx.products || []).join(", ")}. Highlight how their solutions (${sellerCtx.valueProps}) would solve problems for this company. When inferring contacts, prioritize titles matching the seller's target buyers.`
+    : "";
+
+  const systemPrompt = `You are a ${rawData.analystRole || "cybersecurity sales intelligence analyst"}.${sellerInsert} Given raw data about a company from SEC filings, Wikipedia, vulnerability databases, and news, produce a detailed structured JSON analysis.
 
 Return ONLY valid JSON matching this TypeScript type (no markdown, no code fences):
 {

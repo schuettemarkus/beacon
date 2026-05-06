@@ -1,6 +1,7 @@
 import { anthropic } from "@/lib/anthropic";
 import { getIndustryConfig } from "@/config/industries";
 import type { CompanyResearchPayload } from "./company-research";
+import type { SellerContext } from "./research-pipeline";
 
 export interface GeneratedEmail {
   variant: string;
@@ -15,9 +16,18 @@ export async function generateEmailVariants(
   research: CompanyResearchPayload,
   contactName?: string,
   contactTitle?: string,
-  industry: string = "cybersecurity"
+  industry: string = "cybersecurity",
+  sellerProfile?: SellerContext
 ): Promise<GeneratedEmail[]> {
   const config = getIndustryConfig(industry);
+
+  const sellerSystemInsert = sellerProfile
+    ? ` You are writing on behalf of a salesperson at ${sellerProfile.company}. The product being sold is: ${sellerProfile.products.join(", ")}. Value proposition: ${sellerProfile.valueProps}. Reference the seller's company and product naturally in the email. Sign off with the seller's name.`
+    : "";
+
+  const sellerUserInsert = sellerProfile
+    ? `\nSeller: ${sellerProfile.company} (${sellerProfile.products.join(", ")})`
+    : "";
 
   const variants = await Promise.all(
     config.emailVariants.map(async (variantConfig) => {
@@ -27,14 +37,14 @@ export async function generateEmailVariants(
         system: [
           {
             type: "text",
-            text: `${config.emailWriterRole} Return ONLY valid JSON with fields: "subject" (string), "preview" (string, 40 chars max), "body" (string, the email body).`,
+            text: `${config.emailWriterRole}${sellerSystemInsert} Return ONLY valid JSON with fields: "subject" (string), "preview" (string, 40 chars max), "body" (string, the email body).`,
             cache_control: { type: "ephemeral" },
           },
         ],
         messages: [
           {
             role: "user",
-            content: `${variantConfig.prompt}\n\nCompany: ${research.company}\nIndustry: ${research.industry}\nEmployees: ${research.employees}\nTech Stack: ${research.techStack.join(", ")}\nKey Signals: ${research.signals.map((s) => s.title).join("; ")}\n${contactName ? `Recipient: ${contactName}, ${contactTitle}` : `Recipient: ${config.typicalBuyerTitles[0]}`}`,
+            content: `${variantConfig.prompt}\n\nCompany: ${research.company}\nIndustry: ${research.industry}\nEmployees: ${research.employees}\nTech Stack: ${research.techStack.join(", ")}\nKey Signals: ${research.signals.map((s) => s.title).join("; ")}\n${contactName ? `Recipient: ${contactName}, ${contactTitle}` : `Recipient: ${config.typicalBuyerTitles[0]}`}${sellerUserInsert}`,
           },
         ],
       });

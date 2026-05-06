@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { runResearchPipeline } from "@/services/research-pipeline";
+import type { SellerContext } from "@/services/research-pipeline";
 
 export async function POST(request: Request) {
   const user = await getSession();
@@ -13,8 +14,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Query is required" }, { status: 400 });
   }
 
+  // Load seller profile
+  let sellerProfile: SellerContext | undefined;
+  const userData = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { sellerProfile: true },
+  });
+  if (userData?.sellerProfile) {
+    try {
+      sellerProfile = JSON.parse(userData.sellerProfile as string);
+    } catch { /* ignore */ }
+  }
+
   try {
-    const payload = await runResearchPipeline(query, user.id, user.industry);
+    const payload = await runResearchPipeline(query, user.id, user.industry, sellerProfile);
 
     // Save the research run
     const run = await prisma.researchRun.create({

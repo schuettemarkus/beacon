@@ -9,14 +9,15 @@ datasource db {
 }
 
 model User {
-  id         String   @id @default(cuid())
-  name       String
-  email      String   @unique
-  password   String
-  avatarUrl  String?
-  icpProfile String?  // JSON
-  industry   String   @default("cybersecurity")
-  createdAt  DateTime @default(now())
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  password      String
+  avatarUrl     String?
+  icpProfile    String?  // JSON
+  sellerProfile String?  // JSON: { company, role, products[], valueProps, territory }
+  industry      String   @default("cybersecurity")
+  createdAt     DateTime @default(now())
 }
 
 model Session {

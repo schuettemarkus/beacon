@@ -5,6 +5,7 @@ import { generateEmailVariants } from "@/services/email-generator";
 import { scoreLead } from "@/services/lead-scorer";
 import type { ICPProfile } from "@/services/lead-scorer";
 import type { CompanyResearchPayload } from "@/services/company-research";
+import type { SellerContext } from "@/services/research-pipeline";
 
 export async function POST(
   _request: Request,
@@ -123,6 +124,18 @@ export async function POST(
     });
   }
 
+  // Load seller profile for email personalization
+  let sellerProfile: SellerContext | undefined;
+  try {
+    const sellerData = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { sellerProfile: true },
+    });
+    if (sellerData?.sellerProfile) {
+      sellerProfile = JSON.parse(sellerData.sellerProfile as string);
+    }
+  } catch { /* ignore */ }
+
   // Generate email variants via Claude
   try {
     const firstContact = payload.contacts?.[0];
@@ -130,7 +143,8 @@ export async function POST(
       payload,
       firstContact?.name,
       firstContact?.title,
-      user.industry
+      user.industry,
+      sellerProfile
     );
 
     // Get the first contact ID (or create a placeholder)

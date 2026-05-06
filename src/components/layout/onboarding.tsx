@@ -12,6 +12,7 @@ import {
   Users,
   Megaphone,
   Scale,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,12 +34,29 @@ const INDUSTRY_ICONS: Record<IndustryId, React.ComponentType<{ className?: strin
   legaltech: Scale,
 };
 
+const REGION_PRESETS: Record<string, string[]> = {
+  West: ["CA", "WA", "OR", "NV", "AZ", "UT", "CO"],
+  East: ["NY", "NJ", "PA", "MA", "CT", "MD", "VA"],
+  Central: ["IL", "OH", "MI", "MN", "WI", "IN", "MO"],
+  South: ["TX", "FL", "GA", "NC", "TN", "AL", "SC"],
+  Northeast: ["NY", "MA", "CT", "NJ", "PA", "NH", "VT", "ME", "RI"],
+};
+
 export function Onboarding() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [selectedIndustry, setSelectedIndustry] = useState<IndustryId | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Seller profile fields
+  const [sellerCompany, setSellerCompany] = useState("");
+  const [sellerRole, setSellerRole] = useState("");
+  const [sellerProducts, setSellerProducts] = useState("");
+  const [sellerValueProp, setSellerValueProp] = useState("");
+  const [territoryType, setTerritoryType] = useState<"national" | "regional" | "states">("national");
+  const [territoryStates, setTerritoryStates] = useState("");
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
 
   // ICP fields
   const [industries, setIndustries] = useState("");
@@ -48,6 +66,9 @@ export function Onboarding() {
   const [keySignals, setKeySignals] = useState("");
   const [techStack, setTechStack] = useState("");
   const [geoTargets, setGeoTargets] = useState("");
+  const [buyerTitles, setBuyerTitles] = useState("");
+  const [verticals, setVerticals] = useState("");
+  const [accountType, setAccountType] = useState<"new_business" | "expansion" | "both">("both");
 
   const dismiss = () => {
     localStorage.setItem("beacon_onboarding_done", "true");
@@ -73,6 +94,41 @@ export function Onboarding() {
     }
   }
 
+  async function saveSellerProfile() {
+    setSaving(true);
+    try {
+      let territory: { type: string; states?: string[]; description?: string } = { type: territoryType };
+      if (territoryType === "states") {
+        territory.states = parseList(territoryStates);
+        territory.description = territory.states.join(", ");
+      } else if (territoryType === "regional" && selectedRegion) {
+        territory.states = REGION_PRESETS[selectedRegion];
+        territory.description = selectedRegion;
+      } else {
+        territory.description = "National";
+      }
+
+      const res = await fetch("/api/profile/seller", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company: sellerCompany,
+          role: sellerRole,
+          products: parseList(sellerProducts),
+          valueProps: sellerValueProp,
+          territory,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Seller profile saved");
+      setStep(2);
+    } catch {
+      toast.error("Failed to save seller profile");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveICP() {
     setSaving(true);
     try {
@@ -87,11 +143,14 @@ export function Onboarding() {
           keySignals: parseList(keySignals),
           techStack: parseList(techStack),
           geoTargets: parseList(geoTargets),
+          buyerTitles: parseList(buyerTitles),
+          verticals: parseList(verticals),
+          accountType,
         }),
       });
       if (!res.ok) throw new Error();
       toast.success("ICP profile saved");
-      setStep(2);
+      setStep(3);
     } catch {
       toast.error("Failed to save ICP");
     } finally {
@@ -103,6 +162,7 @@ export function Onboarding() {
 
   const titles = [
     "What do you sell?",
+    "About You",
     "Define your ICP",
     "You're all set!",
   ];
@@ -182,8 +242,123 @@ export function Onboarding() {
             </motion.div>
           )}
 
-          {/* Step 1: ICP Profile */}
+          {/* Step 1: About You (Seller Profile) */}
           {step === 1 && (
+            <motion.div
+              key="seller"
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.25 }}
+              className="flex flex-col items-center gap-4"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Building2 className="size-6" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-semibold">{titles[1]}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Tell us about your company and what you sell so Beacon can personalize all content.
+                </p>
+              </div>
+
+              <form
+                className="w-full space-y-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  saveSellerProfile();
+                }}
+              >
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Company Name</Label>
+                    <Input
+                      placeholder="e.g., Trellix, Palo Alto Networks"
+                      value={sellerCompany}
+                      onChange={(e) => setSellerCompany(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Your Role</Label>
+                    <Input
+                      placeholder="e.g., Account Manager, AE, SDR"
+                      value={sellerRole}
+                      onChange={(e) => setSellerRole(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">What You Sell</Label>
+                    <Input
+                      placeholder="e.g., XDR, MDR, endpoint security"
+                      value={sellerProducts}
+                      onChange={(e) => setSellerProducts(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Your Value Prop</Label>
+                    <Input
+                      placeholder="Brief pitch — e.g., Unified threat detection across endpoints and cloud"
+                      value={sellerValueProp}
+                      onChange={(e) => setSellerValueProp(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs">Territory</Label>
+                  <div className="flex gap-2">
+                    {(["national", "regional", "states"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => { setTerritoryType(t); setSelectedRegion(null); }}
+                        className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          territoryType === t
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {t === "national" ? "National" : t === "regional" ? "Regional" : "Custom States"}
+                      </button>
+                    ))}
+                  </div>
+                  {territoryType === "regional" && (
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {Object.keys(REGION_PRESETS).map((region) => (
+                        <button
+                          key={region}
+                          type="button"
+                          onClick={() => setSelectedRegion(region)}
+                          className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                            selectedRegion === region
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground hover:border-primary/50"
+                          }`}
+                        >
+                          {region}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {territoryType === "states" && (
+                    <Input
+                      placeholder="CA, NY, TX, FL"
+                      value={territoryStates}
+                      onChange={(e) => setTerritoryStates(e.target.value)}
+                      className="mt-1"
+                    />
+                  )}
+                </div>
+
+                <Button type="submit" className="w-full" disabled={saving}>
+                  {saving ? "Saving..." : "Save & Continue"}
+                </Button>
+              </form>
+            </motion.div>
+          )}
+
+          {/* Step 2: ICP Profile */}
+          {step === 2 && (
             <motion.div
               key="icp"
               initial={{ opacity: 0, x: 40 }}
@@ -196,7 +371,7 @@ export function Onboarding() {
                 <Target className="size-6" />
               </div>
               <div className="text-center">
-                <h3 className="text-lg font-semibold">{titles[1]}</h3>
+                <h3 className="text-lg font-semibold">{titles[2]}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Tell us who you sell to so we can score and surface the best leads.
                 </p>
@@ -268,6 +443,41 @@ export function Onboarding() {
                       onChange={(e) => setGeoTargets(e.target.value)}
                     />
                   </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Target Buyer Titles</Label>
+                    <Input
+                      placeholder="IT Director, CTO, VP Infrastructure"
+                      value={buyerTitles}
+                      onChange={(e) => setBuyerTitles(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Verticals</Label>
+                    <Input
+                      placeholder="SLED, GHE, Enterprise, Mid-Market"
+                      value={verticals}
+                      onChange={(e) => setVerticals(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Account Type</Label>
+                  <div className="flex gap-2">
+                    {([["new_business", "New Business"], ["expansion", "Expansion"], ["both", "Both"]] as const).map(([val, label]) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setAccountType(val)}
+                        className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          accountType === val
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground hover:border-primary/50"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <Button type="submit" className="w-full" disabled={saving}>
                   {saving ? "Saving..." : "Save & Continue"}
@@ -276,8 +486,8 @@ export function Onboarding() {
             </motion.div>
           )}
 
-          {/* Step 2: All set + Research */}
-          {step === 2 && (
+          {/* Step 3: All set + Research */}
+          {step === 3 && (
             <motion.div
               key="done"
               initial={{ opacity: 0, x: 40 }}
@@ -290,7 +500,7 @@ export function Onboarding() {
                 <Check className="size-6" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">{titles[2]}</h3>
+                <h3 className="text-lg font-semibold">{titles[3]}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Research your first company to get started. We&apos;ll pull real data and generate outreach for you.
                 </p>
@@ -333,7 +543,7 @@ export function Onboarding() {
             Back
           </Button>
         )}
-        {step < 2 && (
+        {step < 3 && (
           <Button variant="ghost" size="sm" onClick={() => setStep(step + 1)}>
             Skip step
           </Button>

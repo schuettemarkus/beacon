@@ -35,6 +35,21 @@ export async function POST(
 
   const config = getIndustryConfig(user.industry);
 
+  // Load seller profile for context
+  const userData = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { sellerProfile: true },
+  });
+  let sellerContext = "";
+  if (userData?.sellerProfile) {
+    try {
+      const sp = JSON.parse(userData.sellerProfile as string);
+      if (sp.company) {
+        sellerContext = `\n\nThe salesperson you're helping works at ${sp.company} and sells ${(sp.products || []).join(", ")}. Their value prop is: ${sp.valueProps}. Help them with talk tracks, competitive positioning, and objection handling specific to their product.`;
+      }
+    } catch { /* ignore parse errors */ }
+  }
+
   // Get or create chat thread
   let thread = await prisma.chatThread.findFirst({
     where: { researchRunId: runId },
@@ -69,7 +84,7 @@ Help the salesperson with:
 - Comparing with peers
 - Identifying selling angles
 
-Be concise, actionable, and specific to this company.`;
+Be concise, actionable, and specific to this company.${sellerContext}`;
 
   const claudeMessages = existingMessages.map((m) => ({
     role: m.role as "user" | "assistant",

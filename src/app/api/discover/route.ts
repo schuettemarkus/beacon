@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { anthropic } from "@/lib/anthropic";
 import { fetchWikipediaInfo } from "@/services/data-sources/wikipedia";
 import { getIndustryConfig } from "@/config/industries";
@@ -16,6 +17,24 @@ export async function POST(request: Request) {
 
   const config = getIndustryConfig(user.industry);
 
+  // Load seller profile for context
+  let sellerEnhancement = "";
+  const userData = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { sellerProfile: true },
+  });
+  if (userData?.sellerProfile) {
+    try {
+      const sp = JSON.parse(userData.sellerProfile as string);
+      if (sp.company) {
+        const parts: string[] = [];
+        if (sp.products?.length) parts.push(`Find companies that would benefit from ${sp.products.join(", ")}.`);
+        if (sp.territory?.description && sp.territory.description !== "National") parts.push(`Focus on companies in ${sp.territory.description}.`);
+        if (parts.length) sellerEnhancement = " " + parts.join(" ");
+      }
+    } catch { /* ignore parse errors */ }
+  }
+
   // Step 1: Ask Claude to suggest real companies matching the ICP
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
@@ -23,7 +42,7 @@ export async function POST(request: Request) {
     system: [
       {
         type: "text",
-        text: `${config.discoveryRole} The user will describe their ideal customer profile (ICP). Return ONLY a valid JSON array of 8 real companies that match. For each company include: "name" (string), "domain" (string), "industry" (string), "employees" (estimated number), "reasons" (array of 2-3 short strings explaining why they match the ICP). Only suggest companies you are confident actually exist. No markdown, no code fences, just the JSON array.`,
+        text: `${config.discoveryRole} The user will describe their ideal customer profile (ICP).${sellerEnhancement} Return ONLY a valid JSON array of 8 real companies that match. For each company include: "name" (string), "domain" (string), "industry" (string), "employees" (estimated number), "reasons" (array of 2-3 short strings explaining why they match the ICP). Only suggest companies you are confident actually exist. No markdown, no code fences, just the JSON array.`,
         cache_control: { type: "ephemeral" },
       },
     ],
