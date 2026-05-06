@@ -17,22 +17,41 @@ export async function POST(request: Request) {
 
   const config = getIndustryConfig(user.industry);
 
-  // Load seller profile for context
-  let sellerEnhancement = "";
+  // Load seller profile + ICP for strict filtering context
   const userData = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { sellerProfile: true },
+    select: { sellerProfile: true, icpProfile: true },
   });
+
+  let sellerContext = "";
+  let strictFilters = "";
+
   if (userData?.sellerProfile) {
     try {
       const sp = JSON.parse(userData.sellerProfile as string);
-      if (sp.company) {
-        const parts: string[] = [];
-        if (sp.products?.length) parts.push(`Find companies that would benefit from ${sp.products.join(", ")}.`);
-        if (sp.territory?.description && sp.territory.description !== "National") parts.push(`Focus on companies in ${sp.territory.description}.`);
-        if (parts.length) sellerEnhancement = " " + parts.join(" ");
-      }
-    } catch { /* ignore parse errors */ }
+      const parts: string[] = [];
+      if (sp.products?.length)
+        parts.push(`The seller offers: ${sp.products.join(", ")}.`);
+      if (sp.territory?.states?.length)
+        parts.push(`ONLY suggest companies headquartered in these states: ${sp.territory.states.join(", ")}.`);
+      else if (sp.territory?.description && sp.territory.description !== "National")
+        parts.push(`Focus on companies in ${sp.territory.description}.`);
+      if (parts.length) sellerContext = parts.join(" ");
+    } catch { /* ignore */ }
+  }
+
+  if (userData?.icpProfile) {
+    try {
+      const icpProfile = JSON.parse(userData.icpProfile as string);
+      const filters: string[] = [];
+      if (icpProfile.verticals?.length)
+        filters.push(`ONLY suggest organizations in these verticals/sectors: ${icpProfile.verticals.join(", ")}. DO NOT suggest companies outside these verticals.`);
+      if (icpProfile.buyerTitles?.length)
+        filters.push(`Target buyer persona: ${icpProfile.buyerTitles.join(", ")}.`);
+      if (icpProfile.accountType === "new_business")
+        filters.push(`Focus on organizations that are likely NOT existing customers of the seller.`);
+      if (filters.length) strictFilters = filters.join(" ");
+    } catch { /* ignore */ }
   }
 
   // Step 1: Ask Claude to suggest real companies matching the ICP
@@ -42,7 +61,15 @@ export async function POST(request: Request) {
     system: [
       {
         type: "text",
-        text: `${config.discoveryRole} The user will describe their ideal customer profile (ICP).${sellerEnhancement} Return ONLY a valid JSON array of 8 real companies that match. For each company include: "name" (string), "domain" (string), "industry" (string), "employees" (estimated number), "reasons" (array of 2-3 short strings explaining why they match the ICP). Only suggest companies you are confident actually exist. No markdown, no code fences, just the JSON array.`,
+        text: `${config.discoveryRole} The user will describe their ideal customer profile (ICP). ${sellerContext} ${strictFilters}
+
+STRICT RULES:
+- ONLY suggest real organizations that genuinely match the ICP description.
+- If the ICP specifies verticals (e.g., SLED, government, healthcare), EVERY suggestion must be in that vertical. Do NOT suggest companies outside the specified verticals.
+- If territory/states are specified, ONLY suggest companies headquartered in those regions.
+- Quality over quantity — suggest fewer if needed rather than irrelevant matches.
+
+Return ONLY a valid JSON array of up to 8 real companies that match ALL criteria. For each: "name" (string), "domain" (string), "industry" (string), "employees" (estimated number), "reasons" (array of 2-3 short strings explaining why they match). Only suggest companies you are confident actually exist. No markdown, no code fences, just the JSON array.`,
         cache_control: { type: "ephemeral" },
       },
     ],
