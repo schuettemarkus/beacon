@@ -15,10 +15,10 @@ export function AppShell({ children, detail }: AppShellProps) {
       {/* Left rail */}
       <Sidebar />
 
-      {/* Main content */}
-      <main className="ml-16 flex flex-1 overflow-hidden lg:ml-56">
-        {/* Center pane */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 lg:px-10">
+      {/* Main content — no left margin on mobile (bottom nav), offset on md+ (sidebar) */}
+      <main className="ml-0 md:ml-16 flex flex-1 overflow-hidden lg:ml-56">
+        {/* Center pane — bottom padding on mobile for bottom nav */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 pb-20 md:pb-6 md:px-8 lg:px-10">
           {children}
         </div>
 
