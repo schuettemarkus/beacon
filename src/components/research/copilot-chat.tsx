@@ -193,7 +193,7 @@ export function CopilotChat({ company, researchRunId, industry }: CopilotChatPro
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-50 h-[70vh] bg-white rounded-t-2xl shadow-2xl border-t border-gray-100 flex flex-col lg:hidden"
+            className="fixed inset-x-0 bottom-0 z-50 h-[60vh] bg-white rounded-t-2xl shadow-2xl border-t border-gray-100 flex flex-col lg:hidden"
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
@@ -321,7 +321,7 @@ function ChatContent({
 
       <form
         onSubmit={onSubmit}
-        className="border-t border-gray-100 px-4 py-3 flex gap-2"
+        className="border-t border-gray-100 px-4 py-3 pb-4 flex gap-2"
       >
         <input
           type="text"

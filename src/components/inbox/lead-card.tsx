@@ -169,9 +169,9 @@ export function LeadCard({
             </div>
 
             {/* Meta row */}
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span>{lead.employees.toLocaleString()} employees</span>
-              <span>{lead.hq}</span>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground truncate">
+              <span className="truncate">{lead.employees.toLocaleString()} employees</span>
+              <span className="truncate">{lead.hq}</span>
             </div>
 
             {/* Signal hook */}
@@ -186,6 +186,7 @@ export function LeadCard({
               <Button
                 variant="ghost"
                 size="icon-xs"
+                className="min-h-8 min-w-8"
                 onClick={(e) => handleAction(e, "open")}
                 aria-label="Open lead"
               >
@@ -194,6 +195,7 @@ export function LeadCard({
               <Button
                 variant="ghost"
                 size="icon-xs"
+                className="min-h-8 min-w-8"
                 onClick={(e) => handleAction(e, "email")}
                 aria-label="Email lead"
               >
@@ -202,6 +204,7 @@ export function LeadCard({
               <Button
                 variant="ghost"
                 size="icon-xs"
+                className="min-h-8 min-w-8"
                 onClick={(e) => handleAction(e, "snooze")}
                 aria-label="Snooze lead"
               >
@@ -210,6 +213,7 @@ export function LeadCard({
               <Button
                 variant="ghost"
                 size="icon-xs"
+                className="min-h-8 min-w-8"
                 onClick={(e) => handleAction(e, "archive")}
                 aria-label="Archive lead"
               >

@@ -175,7 +175,7 @@ export default function InboxPage() {
       </AnimatePresence>
 
       <motion.div
-        className="fixed bottom-6 right-6 z-50"
+        className={`fixed right-6 z-50 ${selectedLeads.size > 0 ? "bottom-28" : "bottom-6"}`}
         whileHover={{ scale: 1.05, boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}
         whileTap={{ scale: 0.95 }}
       >

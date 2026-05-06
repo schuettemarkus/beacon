@@ -23,9 +23,9 @@ export function BulkActionBar({
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 80, opacity: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2"
+      className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2"
     >
-      <div className="flex items-center gap-2 rounded-full border bg-background px-4 py-2 shadow-lg">
+      <div className="flex items-center gap-2 rounded-full border bg-background px-4 py-2 shadow-lg max-w-[calc(100vw-2rem)]">
         <span className="text-sm font-medium text-foreground">
           {selectedIds.length} selected
         </span>
@@ -39,7 +39,7 @@ export function BulkActionBar({
           className="gap-1.5"
         >
           <Archive className="size-4" />
-          Archive All
+          <span className="hidden sm:inline">Archive All</span>
         </Button>
 
         <Button
@@ -49,7 +49,7 @@ export function BulkActionBar({
           className="gap-1.5"
         >
           <Clock className="size-4" />
-          Snooze All
+          <span className="hidden sm:inline">Snooze All</span>
         </Button>
 
         <div className="mx-1 h-4 w-px bg-border" />

@@ -73,13 +73,15 @@ export default function ProfilePage() {
 
       {/* Tabbed sections */}
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="icp">ICP Profile</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="signature">Email Signature</TabsTrigger>
-          <TabsTrigger value="preferences">Preferences</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4">
+          <TabsList>
+            <TabsTrigger value="profile" className="flex-shrink-0 whitespace-nowrap">Profile</TabsTrigger>
+            <TabsTrigger value="icp" className="flex-shrink-0 whitespace-nowrap">ICP Profile</TabsTrigger>
+            <TabsTrigger value="integrations" className="flex-shrink-0 whitespace-nowrap">Integrations</TabsTrigger>
+            <TabsTrigger value="signature" className="flex-shrink-0 whitespace-nowrap">Email Signature</TabsTrigger>
+            <TabsTrigger value="preferences" className="flex-shrink-0 whitespace-nowrap">Preferences</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="profile">
           <Card className="p-6">

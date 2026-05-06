@@ -130,16 +130,18 @@ export default function LeadDetailPage() {
 
       {/* Tabs */}
       <Tabs defaultValue={defaultTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="threat-surface">
-            {config.useVulnSources ? "Threat Surface" : "Risk Signals"}
-          </TabsTrigger>
-          <TabsTrigger value="people">People</TabsTrigger>
-          <TabsTrigger value="signals">Signals</TabsTrigger>
-          <TabsTrigger value="emails">Emails</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-4 px-4">
+          <TabsList>
+            <TabsTrigger value="overview" className="flex-shrink-0 whitespace-nowrap">Overview</TabsTrigger>
+            <TabsTrigger value="threat-surface" className="flex-shrink-0 whitespace-nowrap">
+              {config.useVulnSources ? "Threat Surface" : "Risk Signals"}
+            </TabsTrigger>
+            <TabsTrigger value="people" className="flex-shrink-0 whitespace-nowrap">People</TabsTrigger>
+            <TabsTrigger value="signals" className="flex-shrink-0 whitespace-nowrap">Signals</TabsTrigger>
+            <TabsTrigger value="emails" className="flex-shrink-0 whitespace-nowrap">Emails</TabsTrigger>
+            <TabsTrigger value="activity" className="flex-shrink-0 whitespace-nowrap">Activity</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Overview */}
         <TabsContent value="overview">

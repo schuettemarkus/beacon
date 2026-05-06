@@ -98,7 +98,7 @@ export default function AnalyticsPage() {
             <BarChart data={data.leadsByStage} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis type="number" tick={{ fontSize: 11 }} />
-              <YAxis dataKey="stage" type="category" tick={{ fontSize: 11 }} width={100} />
+              <YAxis dataKey="stage" type="category" tick={{ fontSize: 9 }} width={80} />
               <Tooltip />
               <Bar dataKey="count" fill="#6366F1" radius={[0, 4, 4, 0]} />
             </BarChart>

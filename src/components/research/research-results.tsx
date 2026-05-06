@@ -380,8 +380,8 @@ export function ResearchResults({
             <BarChart3 className="inline h-3.5 w-3.5 mr-1" />
             Peer Comparison
           </h2>
-          <div className="rounded-lg border border-border overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-lg border border-border overflow-x-auto">
+            <table className="w-full text-sm min-w-[400px]">
               <thead className="bg-muted/50">
                 <tr>
                   <th className="px-4 py-2 text-left font-medium text-xs text-muted-foreground">
