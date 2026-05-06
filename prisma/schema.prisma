@@ -174,3 +174,14 @@ model Digest {
   createdAt DateTime  @default(now())
   readAt    DateTime?
 }
+
+model EnrichmentCache {
+  id        String   @id @default(cuid())
+  domain    String
+  type      String   // "domain_search" | "email_find"
+  key       String   // domain for domain_search, "name|domain" for email_find
+  payload   String   // JSON result
+  createdAt DateTime @default(now())
+
+  @@unique([type, key])
+}

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { generateEmailVariants } from "@/services/email-generator";
 import { scoreLead } from "@/services/lead-scorer";
 import { estimateDealValue } from "@/services/deal-value-estimator";
+import { enrichContact, findContactsAtDomain } from "@/services/enrichment-service";
 import type { ICPProfile } from "@/services/lead-scorer";
 import type { CompanyResearchPayload } from "@/services/company-research";
 import type { SellerContext } from "@/services/research-pipeline";
@@ -90,24 +91,39 @@ export async function POST(
   }
 
   // Create contacts and attempt enrichment
+  // First: try Hunter domain search to get real contacts (cached for 7 days)
+  let domainContacts: Awaited<ReturnType<typeof findContactsAtDomain>> = [];
+  try {
+    domainContacts = await findContactsAtDomain(payload.domain);
+  } catch {
+    // Non-fatal
+  }
+
   if (payload.contacts?.length) {
     for (const c of payload.contacts) {
+      // Check if domain search found a real match for this contact's title
+      const domainMatch = domainContacts.find(
+        (dc) => dc.title.toLowerCase().includes(c.title.toLowerCase().split(",")[0]) ||
+                c.title.toLowerCase().includes(dc.title.toLowerCase().split(",")[0])
+      );
+
       const contact = await prisma.contact.create({
         data: {
           leadId: lead.id,
-          name: c.name,
-          title: c.title,
-          email: c.email,
-          phone: c.phone || null,
-          linkedin: c.linkedin || null,
+          name: domainMatch?.name || c.name,
+          title: domainMatch?.title || c.title,
+          email: domainMatch?.email || c.email,
+          phone: domainMatch?.phone || c.phone || null,
+          linkedin: domainMatch?.linkedin || c.linkedin || null,
           decisionMakerScore: c.decisionMakerScore || 50,
+          enrichedAt: domainMatch ? new Date() : null,
+          enrichmentSource: domainMatch?.source || null,
         },
       });
 
-      // Auto-enrich if email is a placeholder
-      if (c.email.includes("contact@")) {
+      // If no domain match and email is placeholder, try individual enrichment
+      if (!domainMatch && c.email.includes("contact@")) {
         try {
-          const { enrichContact } = await import("@/services/enrichment-service");
           const enriched = await enrichContact(c.name, payload.domain);
           if (enriched?.email) {
             await prisma.contact.update({
@@ -122,9 +138,35 @@ export async function POST(
             });
           }
         } catch {
-          // Non-fatal: contact saved even if enrichment fails
+          // Non-fatal
         }
       }
+    }
+  }
+
+  // Add any additional domain search contacts not already matched
+  if (domainContacts.length > 0 && payload.contacts?.length) {
+    const existingEmails = new Set(payload.contacts.map((c) => c.email));
+    const additionalContacts = domainContacts.filter(
+      (dc) => !existingEmails.has(dc.email) &&
+              !payload.contacts!.some((c) =>
+                c.name.toLowerCase() === dc.name.toLowerCase()
+              )
+    );
+    for (const dc of additionalContacts.slice(0, 3)) {
+      await prisma.contact.create({
+        data: {
+          leadId: lead.id,
+          name: dc.name,
+          title: dc.title,
+          email: dc.email,
+          phone: dc.phone || null,
+          linkedin: dc.linkedin || null,
+          decisionMakerScore: 50,
+          enrichedAt: new Date(),
+          enrichmentSource: dc.source,
+        },
+      });
     }
   }
 

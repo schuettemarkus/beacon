@@ -2,10 +2,13 @@
  * Contact Enrichment Service
  *
  * Supports Hunter.io for email verification/finding and domain search.
+ * All Hunter API results are cached in DB to minimize API calls.
  * Falls back to a Claude-powered inference when no API key is configured.
  *
  * Set HUNTER_API_KEY in environment to use Hunter.io.
  */
+
+import { prisma } from "@/lib/db";
 
 export interface EnrichedContact {
   email?: string;
@@ -26,6 +29,32 @@ export interface DomainSearchResult {
 }
 
 const HUNTER_API_KEY = process.env.HUNTER_API_KEY;
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+async function getCached(type: string, key: string): Promise<any | null> {
+  try {
+    const entry = await prisma.enrichmentCache.findUnique({
+      where: { type_key: { type, key } },
+    });
+    if (!entry) return null;
+    if (Date.now() - new Date(entry.createdAt).getTime() > CACHE_TTL_MS) return null;
+    return JSON.parse(entry.payload);
+  } catch {
+    return null;
+  }
+}
+
+async function setCache(type: string, key: string, domain: string, payload: any): Promise<void> {
+  try {
+    await prisma.enrichmentCache.upsert({
+      where: { type_key: { type, key } },
+      update: { payload: JSON.stringify(payload), createdAt: new Date() },
+      create: { type, key, domain, payload: JSON.stringify(payload) },
+    });
+  } catch {
+    // Non-fatal
+  }
+}
 
 /**
  * Enrich a specific contact by name + domain using Hunter.io email finder
@@ -34,10 +63,21 @@ export async function enrichContact(
   name: string,
   domain: string
 ): Promise<EnrichedContact | null> {
+  const cacheKey = `${name.toLowerCase()}|${domain.toLowerCase()}`;
+  const cached = await getCached("email_find", cacheKey);
+  if (cached) return cached;
+
+  let result: EnrichedContact | null;
   if (HUNTER_API_KEY) {
-    return enrichViaHunter(name, domain);
+    result = await enrichViaHunter(name, domain);
+  } else {
+    result = enrichViaInference(name, domain);
   }
-  return enrichViaInference(name, domain);
+
+  if (result) {
+    await setCache("email_find", cacheKey, domain, result);
+  }
+  return result;
 }
 
 /**
@@ -46,10 +86,21 @@ export async function enrichContact(
 export async function findContactsAtDomain(
   domain: string
 ): Promise<DomainSearchResult[]> {
+  const cacheKey = domain.toLowerCase();
+  const cached = await getCached("domain_search", cacheKey);
+  if (cached) return cached;
+
+  let results: DomainSearchResult[];
   if (HUNTER_API_KEY) {
-    return domainSearchViaHunter(domain);
+    results = await domainSearchViaHunter(domain);
+  } else {
+    results = [];
   }
-  return [];
+
+  if (results.length > 0) {
+    await setCache("domain_search", cacheKey, domain, results);
+  }
+  return results;
 }
 
 /**
@@ -60,16 +111,22 @@ export async function verifyEmail(
 ): Promise<{ result: string; score: number } | null> {
   if (!HUNTER_API_KEY) return null;
 
+  const cacheKey = email.toLowerCase();
+  const cached = await getCached("email_verify", cacheKey);
+  if (cached) return cached;
+
   try {
     const res = await fetch(
       `https://api.hunter.io/v2/email-verifier?email=${encodeURIComponent(email)}&api_key=${HUNTER_API_KEY}`
     );
     if (!res.ok) return null;
     const data = await res.json();
-    return {
+    const result = {
       result: data.data?.result || "unknown",
       score: data.data?.score || 0,
     };
+    await setCache("email_verify", cacheKey, email.split("@")[1] || "", result);
+    return result;
   } catch {
     return null;
   }
@@ -146,11 +203,10 @@ async function domainSearchViaHunter(
 
 // --- Inference Fallback (no API key) ---
 
-async function enrichViaInference(
+function enrichViaInference(
   name: string,
   domain: string
-): Promise<EnrichedContact | null> {
-  // Common email patterns: first.last@domain, flast@domain, first@domain
+): EnrichedContact | null {
   const [firstName, ...lastParts] = name.toLowerCase().split(" ");
   const lastName = lastParts.join("").toLowerCase();
 
@@ -164,7 +220,7 @@ async function enrichViaInference(
   ];
 
   return {
-    email: patterns[0], // Most common pattern
+    email: patterns[0],
     confidence: 35,
     source: "Pattern inference (unverified)",
   };
