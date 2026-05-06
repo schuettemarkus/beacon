@@ -39,7 +39,7 @@ export async function POST(
       funding: payload.funding,
       fitScore: payload.fitScore,
       status: "today",
-      logoUrl: `https://logo.clearbit.com/${payload.domain}`,
+      logoUrl: `https://www.google.com/s2/favicons?domain=${payload.domain}&sz=128`,
     },
   });
 
