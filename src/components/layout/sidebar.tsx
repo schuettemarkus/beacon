@@ -8,9 +8,6 @@ import {
   Compass,
   Sparkles,
   Target,
-  Timer,
-  Kanban,
-  BarChart3,
 } from "lucide-react";
 import { BeaconLogo } from "@/components/layout/beacon-logo";
 import { useUser } from "@/app/providers";
@@ -20,7 +17,6 @@ const navItems = [
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/research", label: "Research", icon: Sparkles },
   { href: "/account-planner", label: "Planner", icon: Target },
-  { href: "/cadences", label: "Cadences", icon: Timer },
 ];
 
 export function Sidebar() {

@@ -113,10 +113,13 @@ export function ContactCard({
               <Crown className="h-4 w-4 text-amber-500" />
             )}
             {contact.enrichedAt && (
-              <span title={`Enriched via ${contact.enrichmentSource}`}><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /></span>
+              <span title={`${contact.enrichmentSource}`}><ShieldCheck className="h-3.5 w-3.5 text-emerald-500" /></span>
             )}
           </div>
           <p className="text-xs text-muted-foreground">{contact.title}</p>
+          {contact.enrichmentSource?.includes("Verified") && (
+            <p className="text-[10px] text-emerald-600 font-medium">Verified</p>
+          )}
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {/* Email */}

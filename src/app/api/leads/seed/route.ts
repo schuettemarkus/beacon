@@ -6,6 +6,7 @@ import { generateEmailVariants } from "@/services/email-generator";
 import { scoreLead } from "@/services/lead-scorer";
 import { estimateDealValue } from "@/services/deal-value-estimator";
 import { enrichContact, findContactsAtDomain } from "@/services/enrichment-service";
+import { verifyContacts } from "@/services/contact-verifier";
 import type { ICPProfile } from "@/services/lead-scorer";
 import type { SellerContext } from "@/services/research-pipeline";
 
@@ -104,72 +105,45 @@ export async function POST(request: Request) {
     },
   });
 
-  // Enrich contacts via domain search
+  // Enrich + verify contacts
   let domainContacts: Awaited<ReturnType<typeof findContactsAtDomain>> = [];
   try { domainContacts = await findContactsAtDomain(payload.domain); } catch {}
 
-  if (payload.contacts?.length) {
-    for (const c of payload.contacts) {
-      const domainMatch = domainContacts.find(
-        (dc) => dc.title.toLowerCase().includes(c.title.toLowerCase().split(",")[0]) ||
-                c.title.toLowerCase().includes(dc.title.toLowerCase().split(",")[0])
-      );
+  const verifiedContacts = await verifyContacts(
+    payload.company, payload.domain, payload.contacts || [], domainContacts
+  );
 
-      const contact = await prisma.contact.create({
-        data: {
-          leadId: lead.id,
-          name: domainMatch?.name || c.name,
-          title: domainMatch?.title || c.title,
-          email: domainMatch?.email || c.email,
-          phone: domainMatch?.phone || null,
-          linkedin: domainMatch?.linkedin || null,
-          decisionMakerScore: c.decisionMakerScore || 50,
-          enrichedAt: domainMatch ? new Date() : null,
-          enrichmentSource: domainMatch?.source || null,
-        },
-      });
+  for (const vc of verifiedContacts) {
+    const contact = await prisma.contact.create({
+      data: {
+        leadId: lead.id,
+        name: vc.name,
+        title: vc.title,
+        email: vc.email || `contact@${payload.domain}`,
+        phone: null,
+        linkedin: null,
+        decisionMakerScore: vc.confidence === "high" ? 80 : vc.confidence === "medium" ? 60 : 40,
+        enrichedAt: vc.source === "hunter" || vc.source === "both" ? new Date() : null,
+        enrichmentSource: vc.verified ? `Verified (${vc.source})` : vc.source,
+      },
+    });
 
-      if (!domainMatch && c.email.includes("contact@")) {
-        try {
-          const enriched = await enrichContact(c.name, payload.domain);
-          if (enriched?.email) {
-            await prisma.contact.update({
-              where: { id: contact.id },
-              data: {
-                email: enriched.email,
-                phone: enriched.phone || contact.phone,
-                linkedin: enriched.linkedin || contact.linkedin,
-                enrichedAt: new Date(),
-                enrichmentSource: enriched.source,
-              },
-            });
-          }
-        } catch {}
-      }
-    }
-  }
-
-  // Add extra contacts from domain search
-  if (domainContacts.length > 0 && payload.contacts?.length) {
-    const existingEmails = new Set(payload.contacts.map((c) => c.email));
-    const extra = domainContacts.filter(
-      (dc) => !existingEmails.has(dc.email) &&
-              !payload.contacts!.some((c) => c.name.toLowerCase() === dc.name.toLowerCase())
-    );
-    for (const dc of extra.slice(0, 3)) {
-      await prisma.contact.create({
-        data: {
-          leadId: lead.id,
-          name: dc.name,
-          title: dc.title,
-          email: dc.email,
-          phone: dc.phone || null,
-          linkedin: dc.linkedin || null,
-          decisionMakerScore: 50,
-          enrichedAt: new Date(),
-          enrichmentSource: dc.source,
-        },
-      });
+    if (!vc.email || vc.email.includes("contact@")) {
+      try {
+        const enriched = await enrichContact(vc.name, payload.domain);
+        if (enriched?.email) {
+          await prisma.contact.update({
+            where: { id: contact.id },
+            data: {
+              email: enriched.email,
+              phone: enriched.phone || null,
+              linkedin: enriched.linkedin || null,
+              enrichedAt: new Date(),
+              enrichmentSource: `${enriched.source}${vc.verified ? " (verified)" : ""}`,
+            },
+          });
+        }
+      } catch {}
     }
   }
 
