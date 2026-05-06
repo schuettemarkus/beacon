@@ -9,6 +9,7 @@ export interface CompanyResearchPayload {
   funding: string;
   fitScore: number;
   logoUrl?: string;
+  overview?: string;
   signals: {
     type: string;
     severity: string;

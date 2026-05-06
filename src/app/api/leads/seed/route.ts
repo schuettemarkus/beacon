@@ -88,6 +88,7 @@ export async function POST(request: Request) {
       funding: payload.funding,
       fitScore: payload.fitScore,
       dealValue: estimate.estimatedACV,
+      overview: payload.overview || null,
       status: "today",
       logoUrl: `https://www.google.com/s2/favicons?domain=${payload.domain}&sz=128`,
     },

@@ -166,6 +166,21 @@ export default function LeadDetailPage() {
         {/* Overview */}
         <TabsContent value="overview">
           <div className="space-y-6 pt-4">
+            {/* AI Overview */}
+            {lead.overview && (
+              <Card>
+                <CardContent className="pt-5">
+                  <h3 className="flex items-center gap-2 text-sm font-medium mb-3">
+                    <Zap className="h-4 w-4 text-primary" />
+                    AI Overview
+                  </h3>
+                  <div className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                    {lead.overview}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Firmographics Grid */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <FirmographicCard icon={MapPin} label="Headquarters" value={lead.hq} />

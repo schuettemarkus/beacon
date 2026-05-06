@@ -147,6 +147,7 @@ Return ONLY valid JSON matching this TypeScript type (no markdown, no code fence
   "techStack": string[] (be specific — include cloud providers, security tools, SaaS platforms, databases),
   "funding": string,
   "fitScore": number (0-100),
+  "overview": string (2-3 paragraph executive overview of this company — include recent major events, security posture, key initiatives, leadership, and why a salesperson should care. Write in a direct, conversational tone. Include specific facts, dates, and dollar amounts when available. This should read like a knowledgeable colleague briefing you, not like a corporate summary.),
   "signals": [{
     "type": ${signalTypesStr || '"regulatory"|"peer_breach"|"industry_breach"|"tech_vuln"|"hiring"|"funding"|"ma"|"compliance_audit"|"news"'},
     "severity": "low"|"medium"|"high"|"critical",

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Download, Plus } from "lucide-react";
+import { Download, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DailyBriefing } from "@/components/inbox/daily-briefing";
@@ -12,6 +12,7 @@ import { WeeklyDigestCard } from "@/components/digest/weekly-digest-card";
 import { LeadGroup } from "@/components/inbox/lead-group";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
 import { BulkActionBar } from "@/components/inbox/bulk-action-bar";
+import { BulkImport } from "@/components/leads/bulk-import";
 import { Onboarding } from "@/components/layout/onboarding";
 
 export default function InboxPage() {
@@ -19,6 +20,7 @@ export default function InboxPage() {
   const queryClient = useQueryClient();
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   // Listen for onboarding dismissal via localStorage
   useEffect(() => {
@@ -118,7 +120,16 @@ export default function InboxPage() {
             {totalCount}
           </span>
         )}
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-muted-foreground"
+            onClick={() => setShowImport(true)}
+          >
+            <Upload className="h-3.5 w-3.5" />
+            Import
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -130,6 +141,10 @@ export default function InboxPage() {
           </Button>
         </div>
       </div>
+
+      {showImport && (
+        <BulkImport onClose={() => setShowImport(false)} />
+      )}
 
       {isLoading ? (
         <InboxSkeleton />

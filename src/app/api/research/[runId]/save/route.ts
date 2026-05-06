@@ -40,6 +40,7 @@ export async function POST(
       techStack: JSON.stringify(payload.techStack),
       funding: payload.funding,
       fitScore: payload.fitScore,
+      overview: payload.overview || null,
       status: "today",
       logoUrl: `https://www.google.com/s2/favicons?domain=${payload.domain}&sz=128`,
     },

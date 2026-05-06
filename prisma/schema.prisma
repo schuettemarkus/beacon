@@ -43,6 +43,7 @@ model Lead {
   status       String    @default("today")
   dealStage    String    @default("New")
   dealValue    String?
+  overview     String?
   logoUrl      String?
   createdAt    DateTime  @default(now())
   snoozedUntil DateTime?
