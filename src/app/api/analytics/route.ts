@@ -24,7 +24,7 @@ export async function GET() {
   // Fit score distribution
   const allLeads = await prisma.lead.findMany({
     where: { userId: user.id },
-    select: { id: true, fitScore: true, createdAt: true, industry: true },
+    select: { id: true, fitScore: true, createdAt: true, industry: true, dealValue: true },
   });
 
   const fitScoreDistribution = [
@@ -83,6 +83,16 @@ export async function GET() {
     .slice(0, 8)
     .map(([name, count]) => ({ name, count }));
 
+  // Total pipeline value from deal estimates
+  const totalPipelineValue = allLeads.reduce((sum, l) => {
+    if (!l.dealValue) return sum;
+    const matches = l.dealValue.match(/\$([0-9.]+)(K|M)-\$([0-9.]+)(K|M)/);
+    if (!matches) return sum;
+    const min = parseFloat(matches[1]) * (matches[2] === "M" ? 1_000_000 : 1_000);
+    const max = parseFloat(matches[3]) * (matches[4] === "M" ? 1_000_000 : 1_000);
+    return sum + (min + max) / 2;
+  }, 0);
+
   // Totals (scoped to user's leads)
   const totalLeads = allLeads.length;
   const totalContacts = await prisma.contact.count({ where: { leadId: { in: userLeadIds } } });
@@ -91,7 +101,7 @@ export async function GET() {
   const totalResearchRuns = await prisma.researchRun.count({ where: { userId: user.id } });
 
   return NextResponse.json({
-    totals: { totalLeads, totalContacts, totalSignals, totalEmails, totalResearchRuns },
+    totals: { totalLeads, totalContacts, totalSignals, totalEmails, totalResearchRuns, totalPipelineValue },
     leadsByStatus: leadsByStatus.map((s) => ({ status: s.status, count: s._count.id })),
     leadsByStage: leadsByStage.map((s) => ({ stage: s.dealStage, count: s._count.id })),
     fitScoreDistribution,

@@ -12,7 +12,7 @@ export async function GET(
   const { id } = await params;
   const lead = await prisma.lead.findFirst({
     where: { id, userId: user.id },
-    include: { contacts: true, signals: true, emails: true, activities: true },
+    include: { contacts: true, signals: true, emails: true, activities: true, sequences: true },
   });
 
   if (!lead) {

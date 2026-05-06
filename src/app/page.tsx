@@ -8,6 +8,7 @@ import { Download, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DailyBriefing } from "@/components/inbox/daily-briefing";
+import { WeeklyDigestCard } from "@/components/digest/weekly-digest-card";
 import { LeadGroup } from "@/components/inbox/lead-group";
 import { InboxSkeleton } from "@/components/inbox/inbox-skeleton";
 import { BulkActionBar } from "@/components/inbox/bulk-action-bar";
@@ -135,6 +136,7 @@ export default function InboxPage() {
         <Onboarding />
       ) : data ? (
         <div className="space-y-6">
+          <WeeklyDigestCard onLeadClick={(id) => router.push(`/leads/${id}`)} />
           {data.today.length > 0 && <DailyBriefing todayLeads={data.today} />}
           <LeadGroup
             title="Today"

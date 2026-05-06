@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateEmailVariants } from "@/services/email-generator";
 import { scoreLead } from "@/services/lead-scorer";
+import { estimateDealValue } from "@/services/deal-value-estimator";
 import type { ICPProfile } from "@/services/lead-scorer";
 import type { CompanyResearchPayload } from "@/services/company-research";
 import type { SellerContext } from "@/services/research-pipeline";
@@ -69,6 +70,23 @@ export async function POST(
     }
   } catch (e) {
     console.error("ICP scoring error:", e);
+  }
+
+  // Estimate deal value
+  try {
+    const estimate = estimateDealValue({
+      employees: payload.employees,
+      industry: payload.industry,
+      techStack: payload.techStack || [],
+      funding: payload.funding,
+      fitScore: payload.fitScore,
+    });
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: { dealValue: estimate.estimatedACV },
+    });
+  } catch (e) {
+    console.error("Deal value estimation error:", e);
   }
 
   // Create contacts and attempt enrichment

@@ -165,3 +165,12 @@ model ChatThread {
 
   researchRun ResearchRun @relation(fields: [researchRunId], references: [id])
 }
+
+model Digest {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String    @default("weekly")
+  payload   String    // JSON
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+}

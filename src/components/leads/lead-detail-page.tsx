@@ -21,6 +21,7 @@ import {
   Eye,
   MessageSquare,
   Zap,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -35,6 +36,9 @@ import { ThreatSurface } from "@/components/leads/threat-surface";
 import { useLeadActions } from "@/hooks/use-lead-actions";
 import { AddNoteForm } from "@/components/leads/add-note-form";
 import { FitScoreBreakdown } from "@/components/leads/fit-score-breakdown";
+import { MeetingPrepBrief } from "@/components/leads/meeting-prep-brief";
+import { CompetitiveIntel } from "@/components/leads/competitive-intel";
+import { SequenceTab } from "@/components/leads/sequence-tab";
 import { useIndustry } from "@/hooks/use-industry";
 
 function fitScoreColor(score: number) {
@@ -110,6 +114,12 @@ export default function LeadDetailPage() {
           <Badge variant="outline" className={fitScoreColor(lead.fitScore)}>
             Fit: {lead.fitScore}
           </Badge>
+          {lead.dealValue && (
+            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-500/20">
+              <DollarSign className="mr-1 h-3 w-3" />
+              {lead.dealValue}
+            </Badge>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -140,6 +150,16 @@ export default function LeadDetailPage() {
             <TabsTrigger value="signals" className="flex-shrink-0 whitespace-nowrap">Signals</TabsTrigger>
             <TabsTrigger value="emails" className="flex-shrink-0 whitespace-nowrap">Emails</TabsTrigger>
             <TabsTrigger value="activity" className="flex-shrink-0 whitespace-nowrap">Activity</TabsTrigger>
+            <TabsTrigger value="meeting-prep" className="flex-shrink-0 whitespace-nowrap">
+              <FileText className="mr-1 h-3.5 w-3.5" />
+              Meeting Prep
+            </TabsTrigger>
+            <TabsTrigger value="competitive" className="flex-shrink-0 whitespace-nowrap">
+              Competitive
+            </TabsTrigger>
+            <TabsTrigger value="sequence" className="flex-shrink-0 whitespace-nowrap">
+              Sequence
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -153,7 +173,7 @@ export default function LeadDetailPage() {
               <FirmographicCard icon={DollarSign} label="Revenue" value={lead.revenueBand} />
               <FirmographicCard icon={Landmark} label="Funding" value={lead.funding} />
               <FirmographicCard icon={Globe} label="Domain" value={lead.domain} />
-              <FirmographicCard icon={Activity} label="Status" value={lead.status} />
+              <FirmographicCard icon={DollarSign} label="Deal Value" value={lead.dealValue || "Not estimated"} />
             </div>
 
             {/* Tech Stack */}
@@ -266,6 +286,18 @@ export default function LeadDetailPage() {
           </div>
         </TabsContent>
 
+        {/* Meeting Prep */}
+        <TabsContent value="meeting-prep">
+          <MeetingPrepBrief leadId={id} />
+        </TabsContent>
+
+        {/* Competitive Intel */}
+        <TabsContent value="competitive">
+          <div className="pt-4">
+            <CompetitiveIntel leadId={id} />
+          </div>
+        </TabsContent>
+
         {/* Activity */}
         <TabsContent value="activity">
           <div className="space-y-4 pt-4">
@@ -334,6 +366,11 @@ export default function LeadDetailPage() {
               <p className="text-sm text-muted-foreground">No activity yet.</p>
             )}
           </div>
+        </TabsContent>
+
+        {/* Sequence */}
+        <TabsContent value="sequence">
+          <SequenceTab leadId={id} />
         </TabsContent>
       </Tabs>
     </motion.div>
