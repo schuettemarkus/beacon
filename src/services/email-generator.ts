@@ -17,7 +17,8 @@ export async function generateEmailVariants(
   contactName?: string,
   contactTitle?: string,
   industry: string = "cybersecurity",
-  sellerProfile?: SellerContext
+  sellerProfile?: SellerContext,
+  icpProfile?: any
 ): Promise<GeneratedEmail[]> {
   const config = getIndustryConfig(industry);
 
@@ -44,7 +45,7 @@ export async function generateEmailVariants(
         messages: [
           {
             role: "user",
-            content: `${variantConfig.prompt}\n\nCompany: ${research.company}\nIndustry: ${research.industry}\nEmployees: ${research.employees}\nTech Stack: ${research.techStack.join(", ")}\nKey Signals: ${research.signals.map((s) => s.title).join("; ")}\n${contactName ? `Recipient: ${contactName}, ${contactTitle}` : `Recipient: ${config.typicalBuyerTitles[0]}`}${sellerUserInsert}`,
+            content: `${variantConfig.prompt}\n\nCompany: ${research.company}\nIndustry: ${research.industry}\nEmployees: ${research.employees}\nTech Stack: ${research.techStack.join(", ")}\nKey Signals: ${research.signals.map((s) => s.title).join("; ")}\n${contactName ? `Recipient: ${contactName}, ${contactTitle}` : `Recipient: ${icpProfile?.buyerTitles?.[0] || config.typicalBuyerTitles[0]}`}\nTarget vertical: ${icpProfile?.verticals?.join(", ") || "General"}${sellerUserInsert}`,
           },
         ],
       });

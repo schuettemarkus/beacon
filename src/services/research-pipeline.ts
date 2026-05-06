@@ -22,7 +22,8 @@ export async function runResearchPipeline(
   query: string,
   userId?: string,
   industry: string = "cybersecurity",
-  sellerProfile?: SellerContext
+  sellerProfile?: SellerContext,
+  icpProfile?: any
 ): Promise<CompanyResearchPayload> {
   const config = getIndustryConfig(industry);
 
@@ -97,6 +98,13 @@ export async function runResearchPipeline(
     };
   }
 
+  rawData.icpContext = icpProfile ? {
+    buyerTitles: icpProfile.buyerTitles,
+    verticals: icpProfile.verticals,
+    geoTargets: icpProfile.geoTargets,
+    accountType: icpProfile.accountType,
+  } : null;
+
   const payload = await synthesizeWithClaude(rawData);
   payload.logoUrl = logoUrl;
   return payload;
@@ -115,7 +123,16 @@ async function synthesizeWithClaude(
     ? `\nYou are researching this company on behalf of a salesperson at ${sellerCtx.company} who sells ${(sellerCtx.products || []).join(", ")}. Highlight how their solutions (${sellerCtx.valueProps}) would solve problems for this company. When inferring contacts, prioritize titles matching the seller's target buyers.`
     : "";
 
-  const systemPrompt = `You are a ${rawData.analystRole || "cybersecurity sales intelligence analyst"}.${sellerInsert} Given raw data about a company from SEC filings, Wikipedia, vulnerability databases, and news, produce a detailed structured JSON analysis.
+  const icpContext = rawData.icpContext;
+  let icpInsert = "";
+  if (icpContext?.buyerTitles?.length) {
+    icpInsert += `\nWhen inferring contacts, ONLY suggest people with these titles: ${icpContext.buyerTitles.join(", ")}. Do NOT suggest other titles.`;
+  }
+  if (icpContext?.verticals?.length) {
+    icpInsert += `\nThis company is being evaluated for the ${icpContext.verticals.join(", ")} vertical. Focus signals and regulatory analysis on this sector.`;
+  }
+
+  const systemPrompt = `You are a ${rawData.analystRole || "cybersecurity sales intelligence analyst"}.${sellerInsert}${icpInsert} Given raw data about a company from SEC filings, Wikipedia, vulnerability databases, and news, produce a detailed structured JSON analysis.
 
 Return ONLY valid JSON matching this TypeScript type (no markdown, no code fences):
 {

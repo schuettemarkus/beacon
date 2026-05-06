@@ -136,6 +136,18 @@ export async function POST(
     }
   } catch { /* ignore */ }
 
+  // Load ICP profile for email personalization
+  let icpProfile: any = null;
+  try {
+    const icpData = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { icpProfile: true } as any,
+    });
+    if ((icpData as any)?.icpProfile) {
+      icpProfile = JSON.parse((icpData as any).icpProfile as string);
+    }
+  } catch { /* ignore */ }
+
   // Generate email variants via Claude
   try {
     const firstContact = payload.contacts?.[0];
@@ -144,7 +156,8 @@ export async function POST(
       firstContact?.name,
       firstContact?.title,
       user.industry,
-      sellerProfile
+      sellerProfile,
+      icpProfile
     );
 
     // Get the first contact ID (or create a placeholder)

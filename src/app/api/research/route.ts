@@ -14,20 +14,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Query is required" }, { status: 400 });
   }
 
-  // Load seller profile
+  // Load seller profile and ICP profile
   let sellerProfile: SellerContext | undefined;
   const userData = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { sellerProfile: true },
+    select: { sellerProfile: true, icpProfile: true } as any,
   });
   if (userData?.sellerProfile) {
     try {
       sellerProfile = JSON.parse(userData.sellerProfile as string);
     } catch { /* ignore */ }
   }
+  const icpProfile = (userData as any)?.icpProfile ? JSON.parse((userData as any).icpProfile as string) : null;
 
   try {
-    const payload = await runResearchPipeline(query, user.id, user.industry, sellerProfile);
+    const payload = await runResearchPipeline(query, user.id, user.industry, sellerProfile, icpProfile);
 
     // Save the research run
     const run = await prisma.researchRun.create({

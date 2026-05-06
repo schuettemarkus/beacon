@@ -21,11 +21,12 @@ export async function POST(request: Request) {
 
   let newSignals = 0;
 
-  // Cache user → industry lookups to avoid repeated queries
+  // Cache user → industry and ICP lookups to avoid repeated queries
   const userIndustryCache = new Map<string, string>();
+  const userIcpCache = new Map<string, any>();
 
   for (const lead of leads) {
-    // Look up the user's industry (cached)
+    // Look up the user's industry and ICP (cached)
     let industry = userIndustryCache.get(lead.userId);
     if (!industry) {
       const user = await prisma.user.findUnique({
@@ -33,6 +34,11 @@ export async function POST(request: Request) {
       });
       industry = (user as any)?.industry || "cybersecurity";
       userIndustryCache.set(lead.userId, industry as string);
+      if ((user as any)?.icpProfile) {
+        try {
+          userIcpCache.set(lead.userId, JSON.parse((user as any).icpProfile as string));
+        } catch { /* ignore */ }
+      }
     }
 
     const config = getIndustryConfig(industry as string);
@@ -103,7 +109,18 @@ export async function POST(request: Request) {
       // For non-vuln industries: fetch industry news and create signal records
       const newsItems = await fetchIndustryNews(lead.company, config.newsKeywords);
 
+      // Filter by user's ICP verticals if set
+      const userIcp = userIcpCache.get(lead.userId);
+      const verticals: string[] = userIcp?.verticals || [];
+
       for (const item of newsItems.slice(0, 5)) {
+        // If user has verticals set, only create signals relevant to those verticals
+        if (verticals.length > 0) {
+          const titleLower = item.title.toLowerCase();
+          const isRelevant = verticals.some((v: string) => titleLower.includes(v.toLowerCase()));
+          if (!isRelevant) continue;
+        }
+
         const existing = await prisma.signal.findFirst({
           where: {
             leadId: lead.id,

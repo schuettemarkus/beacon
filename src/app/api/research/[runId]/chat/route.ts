@@ -35,10 +35,10 @@ export async function POST(
 
   const config = getIndustryConfig(user.industry);
 
-  // Load seller profile for context
+  // Load seller profile and ICP profile for context
   const userData = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { sellerProfile: true },
+    select: { sellerProfile: true, icpProfile: true } as any,
   });
   let sellerContext = "";
   if (userData?.sellerProfile) {
@@ -46,6 +46,23 @@ export async function POST(
       const sp = JSON.parse(userData.sellerProfile as string);
       if (sp.company) {
         sellerContext = `\n\nThe salesperson you're helping works at ${sp.company} and sells ${(sp.products || []).join(", ")}. Their value prop is: ${sp.valueProps}. Help them with talk tracks, competitive positioning, and objection handling specific to their product.`;
+      }
+    } catch { /* ignore parse errors */ }
+  }
+
+  let icpContext = "";
+  if ((userData as any)?.icpProfile) {
+    try {
+      const icpProfile = JSON.parse((userData as any).icpProfile as string);
+      const parts: string[] = [];
+      if (icpProfile.buyerTitles?.length) {
+        parts.push(`The salesperson targets these buyer personas: ${icpProfile.buyerTitles.join(", ")}.`);
+      }
+      if (icpProfile.verticals?.length) {
+        parts.push(`They focus on ${icpProfile.verticals.join(", ")} verticals. Help them position for these specific personas.`);
+      }
+      if (parts.length) {
+        icpContext = `\n\n${parts.join(" ")}`;
       }
     } catch { /* ignore parse errors */ }
   }
@@ -84,7 +101,7 @@ Help the salesperson with:
 - Comparing with peers
 - Identifying selling angles
 
-Be concise, actionable, and specific to this company.${sellerContext}`;
+Be concise, actionable, and specific to this company.${sellerContext}${icpContext}`;
 
   const claudeMessages = existingMessages.map((m) => ({
     role: m.role as "user" | "assistant",
