@@ -61,6 +61,7 @@ export default function InboxPage() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["digest"] });
       setSelectedLeads(new Set());
       const label = variables.status === "archived" ? "archived" : "snoozed";
       toast.success(`${variables.ids.length} lead(s) ${label}`);

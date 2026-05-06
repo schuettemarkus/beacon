@@ -20,6 +20,7 @@ export function useLeadActions(leadId: string, company: string) {
     queryClient.invalidateQueries({ queryKey: ["leads"] });
     queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
     queryClient.invalidateQueries({ queryKey: ["pipeline-leads"] });
+    queryClient.invalidateQueries({ queryKey: ["digest"] });
   }
 
   const snooze = useMutation({

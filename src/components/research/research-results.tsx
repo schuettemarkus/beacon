@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion, type Variants } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,7 @@ export function ResearchResults({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   async function handleSaveToInbox() {
     if (!researchRunId || saving || saved) return;
@@ -66,6 +68,8 @@ export function ResearchResults({
         const { leadId } = await res.json();
         setSaved(true);
         toast.success("Saved to leads + 3 emails generated");
+        queryClient.invalidateQueries({ queryKey: ["leads"] });
+        queryClient.invalidateQueries({ queryKey: ["digest"] });
         setTimeout(() => router.push(`/leads/${leadId}`), 1500);
       }
     } catch (e) {

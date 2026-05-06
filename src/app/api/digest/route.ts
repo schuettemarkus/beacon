@@ -9,6 +9,11 @@ export async function GET() {
   if (!user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Count current active leads to detect changes
+  const currentLeadCount = await prisma.lead.count({
+    where: { userId: user.id, status: { not: "archived" } },
+  });
+
   const existing = await prisma.digest.findFirst({
     where: {
       userId: user.id,
@@ -18,9 +23,16 @@ export async function GET() {
   });
 
   if (existing) {
-    return NextResponse.json({
-      digest: { id: existing.id, ...JSON.parse(existing.payload), createdAt: existing.createdAt, readAt: existing.readAt },
-    });
+    const payload = JSON.parse(existing.payload);
+    // Regenerate if lead count changed (lead added or removed)
+    if (payload.leadCount !== currentLeadCount) {
+      // Delete stale digest and regenerate
+      await prisma.digest.delete({ where: { id: existing.id } });
+    } else {
+      return NextResponse.json({
+        digest: { id: existing.id, ...payload, createdAt: existing.createdAt, readAt: existing.readAt },
+      });
+    }
   }
 
   const digest = await generateDigestForUser(user.id, user.industry);
@@ -129,6 +141,7 @@ export async function generateDigestForUser(userId: string, industry: string) {
     coldLeads: coldLeads.slice(0, 5).map((l) => ({ id: l.id, company: l.company })),
     newSignalsCount: newSignals.length,
     pipelineMovementCount: pipelineMovement.length,
+    leadCount: leads.length,
   };
 
   const digest = await prisma.digest.create({

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, AlertTriangle, TrendingUp, X } from "lucide-react";
+import { Calendar, AlertTriangle, TrendingUp, X, RefreshCw } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface DigestData {
@@ -21,21 +22,20 @@ interface DigestData {
 }
 
 export function WeeklyDigestCard({ onLeadClick }: { onLeadClick?: (id: string) => void }) {
-  const [digest, setDigest] = useState<DigestData | null>(null);
+  const queryClient = useQueryClient();
   const [dismissed, setDismissed] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/digest")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.digest && !data.digest.readAt) {
-          setDigest(data.digest);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: digest, isLoading: loading, isFetching } = useQuery<DigestData | null>({
+    queryKey: ["digest"],
+    queryFn: async () => {
+      const res = await fetch("/api/digest");
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.digest && !data.digest.readAt) return data.digest;
+      return null;
+    },
+    staleTime: 30 * 1000, // Refetch after 30s if leads changed
+  });
 
   async function handleDismiss() {
     if (!digest) return;
@@ -45,6 +45,7 @@ export function WeeklyDigestCard({ onLeadClick }: { onLeadClick?: (id: string) =
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: digest.id }),
     });
+    queryClient.invalidateQueries({ queryKey: ["digest"] });
   }
 
   if (loading || !digest || dismissed) return null;
@@ -64,9 +65,12 @@ export function WeeklyDigestCard({ onLeadClick }: { onLeadClick?: (id: string) =
                 <Calendar className="h-5 w-5 text-primary" />
                 Your Weekly Plan
               </CardTitle>
-              <Button variant="ghost" size="icon" onClick={handleDismiss}>
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-1">
+                {isFetching && <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                <Button variant="ghost" size="icon" onClick={handleDismiss}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             <p className="text-sm text-muted-foreground">{digest.pipelineSummary}</p>
           </CardHeader>
