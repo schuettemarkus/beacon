@@ -176,6 +176,38 @@ model Digest {
   readAt    DateTime?
 }
 
+model AccountPlan {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  territory String   // JSON: { states[], verticals[] }
+  playbook  String?  // JSON: TerritoryPlaybook
+  status    String   @default("draft")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+
+  accounts AccountPlanEntry[]
+}
+
+model AccountPlanEntry {
+  id                String   @id @default(cuid())
+  accountPlanId     String
+  leadId            String?
+  company           String
+  domain            String
+  state             String
+  rank              Int
+  rankJustification String
+  deepAnalysis      String?  // JSON
+  influenceMap      String?  // JSON
+  winPlan           String?  // JSON
+  status            String   @default("identified")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @default(now())
+
+  accountPlan AccountPlan @relation(fields: [accountPlanId], references: [id])
+}
+
 model EnrichmentCache {
   id        String   @id @default(cuid())
   domain    String
