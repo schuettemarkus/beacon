@@ -168,7 +168,7 @@ export function Onboarding() {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center gap-6 py-8">
+    <div className="flex flex-col items-center justify-center gap-6 py-8 md:py-16 md:min-h-[70vh]">
       <BeaconLogo size={48} className="text-primary" />
 
       <div className="text-center">
@@ -197,7 +197,7 @@ export function Onboarding() {
       </div>
 
       {/* Step content */}
-      <div className="relative w-full max-w-md">
+      <div className="relative w-full max-w-md md:max-w-lg">
         <AnimatePresence mode="wait">
           {/* Step 0: Industry Selection */}
           {step === 0 && (
@@ -486,7 +486,7 @@ export function Onboarding() {
             </motion.div>
           )}
 
-          {/* Step 3: All set + Research */}
+          {/* Step 3: All set */}
           {step === 3 && (
             <motion.div
               key="done"
@@ -502,9 +502,12 @@ export function Onboarding() {
               <div>
                 <h3 className="text-lg font-semibold">{titles[3]}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Research your first company to get started. We&apos;ll pull real data and generate outreach for you.
+                  Your profile is set up. Beacon will now tailor research, emails, and lead scoring to your world.
                 </p>
               </div>
+              <Button className="w-full" onClick={dismiss}>
+                View Leads
+              </Button>
               <form
                 className="flex w-full gap-2"
                 onSubmit={(e) => {
@@ -522,15 +525,11 @@ export function Onboarding() {
                   placeholder={config?.companySearchPlaceholder || "e.g. CrowdStrike, Palo Alto Networks..."}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  autoFocus
                 />
-                <Button type="submit" disabled={!searchQuery.trim()}>
+                <Button type="submit" variant="outline" disabled={!searchQuery.trim()}>
                   Research
                 </Button>
               </form>
-              <Button variant="ghost" onClick={dismiss} className="w-full">
-                Skip — go to inbox
-              </Button>
             </motion.div>
           )}
         </AnimatePresence>

@@ -65,7 +65,7 @@ export function ResearchResults({
       if (res.ok) {
         const { leadId } = await res.json();
         setSaved(true);
-        toast.success("Saved to inbox + 3 emails generated");
+        toast.success("Saved to leads + 3 emails generated");
         setTimeout(() => router.push(`/leads/${leadId}`), 1500);
       }
     } catch (e) {
@@ -149,7 +149,7 @@ export function ResearchResults({
                 ? "Saved + Emails Generated"
                 : saving
                 ? "Saving..."
-                : "Save to Inbox"}
+                : "Save to Leads"}
             </Button>
           </div>
         </div>

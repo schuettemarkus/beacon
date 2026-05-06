@@ -110,7 +110,7 @@ export default function InboxPage() {
     <div className="relative mx-auto w-full max-w-2xl space-y-6 px-4 py-6">
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Inbox
+          Leads
         </h1>
         {!isLoading && totalCount > 0 && (
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  Inbox,
+  Users,
   Compass,
   Sparkles,
   Timer,
@@ -15,7 +15,7 @@ import { BeaconLogo } from "@/components/layout/beacon-logo";
 import { useUser } from "@/app/providers";
 
 const navItems = [
-  { href: "/", label: "Inbox", icon: Inbox },
+  { href: "/", label: "Leads", icon: Users },
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/research", label: "Research", icon: Sparkles },
   { href: "/cadences", label: "Cadences", icon: Timer },

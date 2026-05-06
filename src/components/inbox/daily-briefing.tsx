@@ -85,7 +85,7 @@ export function DailyBriefing({ todayLeads }: DailyBriefingProps) {
                 )}
                 {summaryParts.length === 0 && (
                   <p className="text-xs text-blue-700">
-                    Review your inbox and triage new leads
+                    Review your leads and triage new prospects
                   </p>
                 )}
               </div>
