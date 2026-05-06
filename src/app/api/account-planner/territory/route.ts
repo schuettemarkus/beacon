@@ -233,10 +233,16 @@ No markdown, no code fences, just the JSON array.`,
   const playbook: TerritoryPlaybook = {
     planId: plan.id,
     states: statePlaybooks,
-    overallRanking: overallRanking.map((r) => {
+    overallRanking: overallRanking.map((r, i) => {
+      // Try exact match first, then fuzzy match by company name
       const entry = entries.find(
         (e: any) => e.company === r.company && e.state === r.state
-      );
+      ) || entries.find(
+        (e: any) => e.company.toLowerCase() === r.company.toLowerCase()
+      ) || entries.find(
+        (e: any) => e.company.toLowerCase().includes(r.company.toLowerCase().slice(0, 15)) ||
+                    r.company.toLowerCase().includes(e.company.toLowerCase().slice(0, 15))
+      ) || entries[i]; // fallback to positional match
       return { ...r, entryId: entry?.id };
     }),
   };

@@ -114,19 +114,18 @@ function StateCard({
                         {account.justification}
                       </p>
                     </div>
-                    {entryId && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/account-planner/${entryId}`);
-                        }}
-                      >
-                        View Details
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (entryId) router.push(`/account-planner/${entryId}`);
+                      }}
+                      disabled={!entryId}
+                    >
+                      View Details
+                    </Button>
                   </div>
                 );
               })}
