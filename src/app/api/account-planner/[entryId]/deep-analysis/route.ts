@@ -33,7 +33,7 @@ export async function POST(
 
   const { entryId } = await params;
 
-  const entry = await prisma.accountPlanEntry.findFirst({
+  const entry = await (prisma as any).accountPlanEntry.findFirst({
     where: {
       id: entryId,
       accountPlan: { userId: user.id },
@@ -60,7 +60,7 @@ export async function POST(
       if (sp.products?.length)
         parts.push(`Products/services: ${sp.products.join(", ")}.`);
       if (sp.valueProps?.length)
-        parts.push(`Key value propositions: ${sp.valueProps.join("; ")}.`);
+        parts.push(`Key value propositions: ${sp.valueProps}.`);
       if (parts.length) sellerContext = parts.join(" ");
     } catch {}
   }
@@ -170,7 +170,7 @@ RULES:
     );
   }
 
-  await prisma.accountPlanEntry.update({
+  await (prisma as any).accountPlanEntry.update({
     where: { id: entryId },
     data: {
       deepAnalysis: JSON.stringify(analysis),

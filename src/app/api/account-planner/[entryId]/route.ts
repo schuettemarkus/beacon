@@ -12,7 +12,7 @@ export async function GET(
 
   const { entryId } = await params;
 
-  const entry = await prisma.accountPlanEntry.findFirst({
+  const entry = await (prisma as any).accountPlanEntry.findFirst({
     where: {
       id: entryId,
       accountPlan: { userId: user.id },

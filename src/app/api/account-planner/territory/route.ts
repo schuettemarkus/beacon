@@ -15,7 +15,7 @@ export async function GET() {
   if (!user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const plan = await prisma.accountPlan.findFirst({
+  const plan = await (prisma as any).accountPlan.findFirst({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     include: { accounts: { orderBy: { rank: "asc" } } },
@@ -40,7 +40,7 @@ export async function POST() {
   let territory: string[] = [];
   let products: string[] = [];
   let company = "";
-  let valueProps: string[] = [];
+  let valueProps = "";
 
   if (userData?.sellerProfile) {
     try {
@@ -48,7 +48,7 @@ export async function POST() {
       territory = sp.territory?.states || [];
       products = sp.products || [];
       company = sp.company || "";
-      valueProps = sp.valueProps || [];
+      valueProps = sp.valueProps || "";
     } catch {}
   }
 
@@ -92,7 +92,7 @@ export async function POST() {
 Seller context:
 - Company: ${company || "Not specified"}
 - Products: ${products.length ? products.join(", ") : "Not specified"}
-- Value propositions: ${valueProps.length ? valueProps.join(", ") : "Not specified"}
+- Value propositions: ${valueProps || "Not specified"}
 - Target verticals: ${verticals.length ? verticals.join(", ") : "Any"}
 - Target buyer titles: ${buyerTitles.length ? buyerTitles.join(", ") : config.typicalBuyerTitles.join(", ")}
 
@@ -202,51 +202,51 @@ No markdown, no code fences, just the JSON array.`,
     }));
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const plan = await tx.accountPlan.create({
+  const db = prisma as any;
+
+  const plan = await db.accountPlan.create({
+    data: {
+      userId: user.id,
+      name: `Territory Playbook — ${new Date().toLocaleDateString()}`,
+      territory: JSON.stringify({ states: territory, verticals }),
+      status: "active",
+      playbook: "",
+    },
+  });
+
+  const entries: any[] = [];
+  for (const account of overallRanking) {
+    const entry = await db.accountPlanEntry.create({
       data: {
-        userId: user.id,
-        name: `Territory Playbook — ${new Date().toLocaleDateString()}`,
-        territory: JSON.stringify({ states: territory, verticals }),
-        status: "active",
-        playbook: "", // will update after entries are created
+        accountPlanId: plan.id,
+        company: account.company,
+        domain: account.domain,
+        state: account.state,
+        rank: account.overallRank,
+        rankJustification: account.justification,
+        status: "identified",
       },
     });
+    entries.push(entry);
+  }
 
-    const entries = await Promise.all(
-      overallRanking.map((account) =>
-        tx.accountPlanEntry.create({
-          data: {
-            accountPlanId: plan.id,
-            company: account.company,
-            domain: account.domain,
-            state: account.state,
-            rank: account.overallRank,
-            rankJustification: account.justification,
-            status: "identified",
-          },
-        })
-      )
-    );
+  const playbook: TerritoryPlaybook = {
+    planId: plan.id,
+    states: statePlaybooks,
+    overallRanking: overallRanking.map((r) => {
+      const entry = entries.find(
+        (e: any) => e.company === r.company && e.state === r.state
+      );
+      return { ...r, entryId: entry?.id };
+    }),
+  };
 
-    const playbook: TerritoryPlaybook = {
-      planId: plan.id,
-      states: statePlaybooks,
-      overallRanking: overallRanking.map((r) => {
-        const entry = entries.find(
-          (e) => e.company === r.company && e.state === r.state
-        );
-        return { ...r, entryId: entry?.id };
-      }),
-    };
-
-    await tx.accountPlan.update({
-      where: { id: plan.id },
-      data: { playbook: JSON.stringify(playbook) },
-    });
-
-    return playbook;
+  await db.accountPlan.update({
+    where: { id: plan.id },
+    data: { playbook: JSON.stringify(playbook) },
   });
+
+  const result = playbook;
 
   return NextResponse.json(result);
 }
