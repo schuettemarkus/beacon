@@ -157,8 +157,8 @@ Return ONLY valid JSON matching this TypeScript type (no markdown, no code fence
     "body": string (2-3 sentences explaining the signal's sales relevance)
   }],
   "contacts": [{
-    "name": string (infer likely titles like ${buyerTitlesStr || "CISO, VP Security, CTO"}, but use generic names),
-    "title": string,
+    "name": string (use REAL names of actual people in these roles if you know them from public sources like news, LinkedIn, press releases, or conference talks. If you don't know the real name, use the format "Unknown CISO" or "Unknown CTO" — NEVER fabricate a realistic-sounding fake name like "Michael Chen" or "Sarah Williams"),
+    "title": string (target titles: ${buyerTitlesStr || "CISO, VP Security, CTO"}),
     "email": "contact@{domain}" (placeholder only),
     "decisionMakerScore": number (0-100)
   }],
