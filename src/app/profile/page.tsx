@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,14 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useUser } from "@/app/providers";
 import { useIndustry } from "@/hooks/use-industry";
-import { LogOut } from "lucide-react";
-
-const integrations = [
-  { name: "HubSpot", description: "Sync contacts and deals", connected: false },
-  { name: "Salesforce", description: "Push leads to your CRM", connected: true },
-  { name: "Apollo", description: "Enrich leads with contact data", connected: false },
-  { name: "Gmail", description: "Send sequences from your inbox", connected: true },
-];
+import { LogOut, Search, Mail, Database, MessageSquare, ExternalLink, Check, Eye, EyeOff } from "lucide-react";
 
 export default function ProfilePage() {
   const user = useUser();
@@ -118,43 +111,7 @@ export default function ProfilePage() {
         </TabsContent>
 
         <TabsContent value="integrations">
-          <Card className="p-6">
-            <h2 className="text-lg font-medium">Integrations</h2>
-            <Separator className="my-4" />
-            <div className="space-y-4">
-              {integrations.map((integration) => (
-                <div
-                  key={integration.name}
-                  className="flex items-center justify-between rounded-lg border border-border p-4"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-medium">
-                        {integration.name}
-                      </h3>
-                      {integration.connected && (
-                        <Badge
-                          variant="secondary"
-                          className="bg-green-100 text-green-700 text-xs"
-                        >
-                          Connected
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {integration.description}
-                    </p>
-                  </div>
-                  <Button
-                    variant={integration.connected ? "outline" : "default"}
-                    size="sm"
-                  >
-                    {integration.connected ? "Disconnect" : "Connect"}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </Card>
+          <IntegrationsEditor />
         </TabsContent>
 
         <TabsContent value="signature">
@@ -181,6 +138,316 @@ export default function ProfilePage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+interface IntegrationDef {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  keyField: string;
+  placeholder: string;
+  docsUrl: string;
+  testable: boolean;
+  envFallback?: string;
+}
+
+const INTEGRATIONS: IntegrationDef[] = [
+  {
+    id: "hunter",
+    name: "Hunter.io",
+    description: "Find verified email addresses and enrich contact data for leads",
+    icon: Search,
+    keyField: "hunterApiKey",
+    placeholder: "Enter your Hunter.io API key",
+    docsUrl: "https://hunter.io/api-keys",
+    testable: true,
+    envFallback: "HUNTER_API_KEY",
+  },
+  {
+    id: "resend",
+    name: "Resend",
+    description: "Send outreach emails directly from Beacon with open/click tracking",
+    icon: Mail,
+    keyField: "resendApiKey",
+    placeholder: "Enter your Resend API key",
+    docsUrl: "https://resend.com/api-keys",
+    testable: true,
+  },
+  {
+    id: "hubspot",
+    name: "HubSpot",
+    description: "Sync leads, contacts, and deal stages to your HubSpot CRM",
+    icon: Database,
+    keyField: "hubspotApiKey",
+    placeholder: "Enter your HubSpot private app token",
+    docsUrl: "https://developers.hubspot.com/docs/api/private-apps",
+    testable: false,
+  },
+  {
+    id: "slack",
+    name: "Slack",
+    description: "Get notified about new leads, signals, and pipeline updates in Slack",
+    icon: MessageSquare,
+    keyField: "slackWebhook",
+    placeholder: "Enter your Slack webhook URL",
+    docsUrl: "https://api.slack.com/messaging/webhooks",
+    testable: true,
+  },
+];
+
+function IntegrationsEditor() {
+  const queryClient = useQueryClient();
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [keyValue, setKeyValue] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; error?: string; details?: any }>>({});
+
+  const { data: saved, isLoading } = useQuery({
+    queryKey: ["integrations"],
+    queryFn: async () => {
+      const res = await fetch("/api/profile/integrations");
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ field, value }: { field: string; value: string }) => {
+      const res = await fetch("/api/profile/integrations", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      setEditingKey(null);
+      setKeyValue("");
+      setShowKey(false);
+      toast.success("Integration saved");
+    },
+    onError: () => toast.error("Failed to save integration"),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: async (field: string) => {
+      const res = await fetch("/api/profile/integrations", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: "" }),
+      });
+      if (!res.ok) throw new Error("Failed to disconnect");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      setTestResult({});
+      toast.success("Integration disconnected");
+    },
+    onError: () => toast.error("Failed to disconnect"),
+  });
+
+  async function testConnection(integration: IntegrationDef) {
+    const key = editingKey === integration.id ? keyValue : "";
+    if (!key && !saved?.[integration.keyField]) return;
+
+    setTesting(integration.id);
+    try {
+      const res = await fetch("/api/profile/integrations/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          service: integration.id,
+          apiKey: key || "use-saved",
+        }),
+      });
+      const data = await res.json();
+      setTestResult((prev) => ({ ...prev, [integration.id]: data }));
+      if (data.ok) {
+        toast.success(`${integration.name} connected successfully`);
+      } else {
+        toast.error(data.error || "Connection test failed");
+      }
+    } catch {
+      setTestResult((prev) => ({ ...prev, [integration.id]: { ok: false, error: "Network error" } }));
+      toast.error("Connection test failed");
+    } finally {
+      setTesting(null);
+    }
+  }
+
+  function isConnected(field: string): boolean {
+    return !!saved?.[field];
+  }
+
+  if (isLoading) {
+    return (
+      <Card className="p-6">
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-6">
+      <h2 className="text-lg font-medium">Integrations</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Connect external services to enhance Beacon&apos;s capabilities.
+      </p>
+      <Separator className="my-4" />
+      <div className="space-y-4">
+        {INTEGRATIONS.map((integration) => {
+          const connected = isConnected(integration.keyField);
+          const isEditing = editingKey === integration.id;
+          const Icon = integration.icon;
+          const result = testResult[integration.id];
+
+          return (
+            <div
+              key={integration.id}
+              className={`rounded-lg border p-4 transition-colors ${
+                connected
+                  ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20"
+                  : "border-border"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    connected ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-400" : "bg-muted text-muted-foreground"
+                  }`}>
+                    <Icon className="h-4.5 w-4.5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-medium">{integration.name}</h3>
+                      {connected && (
+                        <Badge
+                          variant="secondary"
+                          className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-400 text-[10px]"
+                        >
+                          <Check className="mr-0.5 h-3 w-3" />
+                          Connected
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {integration.description}
+                    </p>
+                    {connected && !isEditing && (
+                      <p className="mt-1 text-xs font-mono text-muted-foreground">
+                        Key: {saved[integration.keyField]}
+                      </p>
+                    )}
+                    {result && !result.ok && (
+                      <p className="mt-1 text-xs text-destructive">{result.error}</p>
+                    )}
+                    {result?.ok && result.details && (
+                      <p className="mt-1 text-xs text-emerald-600">
+                        {result.details.plan && `Plan: ${result.details.plan}`}
+                        {result.details.remaining !== undefined && ` · ${result.details.remaining} searches remaining`}
+                        {result.details.verified && "Domain verified"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <a
+                    href={integration.docsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-muted-foreground hover:text-foreground"
+                    title="View docs"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                  {connected && !isEditing ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => disconnectMutation.mutate(integration.keyField)}
+                      disabled={disconnectMutation.isPending}
+                    >
+                      Disconnect
+                    </Button>
+                  ) : !isEditing ? (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setEditingKey(integration.id);
+                        setKeyValue("");
+                        setShowKey(false);
+                        setTestResult((prev) => {
+                          const next = { ...prev };
+                          delete next[integration.id];
+                          return next;
+                        });
+                      }}
+                    >
+                      Connect
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* API key input form */}
+              {isEditing && (
+                <div className="mt-3 space-y-2 pl-12">
+                  <div className="relative">
+                    <Input
+                      type={showKey ? "text" : "password"}
+                      value={keyValue}
+                      onChange={(e) => setKeyValue(e.target.value)}
+                      placeholder={integration.placeholder}
+                      className="pr-10"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKey(!showKey)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => saveMutation.mutate({ field: integration.keyField, value: keyValue })}
+                      disabled={!keyValue.trim() || saveMutation.isPending}
+                    >
+                      {saveMutation.isPending ? "Saving..." : "Save Key"}
+                    </Button>
+                    {integration.testable && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => testConnection({ ...integration })}
+                        disabled={!keyValue.trim() || testing === integration.id}
+                      >
+                        {testing === integration.id ? "Testing..." : "Test Connection"}
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => { setEditingKey(null); setKeyValue(""); setShowKey(false); }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
