@@ -195,7 +195,7 @@ IMPORTANT RULES:
 
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 3000,
+    max_tokens: 5000,
     system: [
       {
         type: "text",
@@ -210,6 +210,10 @@ IMPORTANT RULES:
       },
     ],
   });
+
+  if (response.stop_reason === "max_tokens") {
+    console.warn("Claude response truncated (hit max_tokens) for query:", rawData.query);
+  }
 
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";

@@ -21,8 +21,6 @@ const navItems = [
   { href: "/research", label: "Research", icon: Sparkles },
   { href: "/account-planner", label: "Planner", icon: Target },
   { href: "/cadences", label: "Cadences", icon: Timer },
-  { href: "/pipeline", label: "Pipeline", icon: Kanban },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 export function Sidebar() {
