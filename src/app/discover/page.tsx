@@ -22,22 +22,46 @@ interface DiscoveryResult {
   verified: boolean;
 }
 
-function buildIcpDescription(icpData: any): string {
+function buildDiscoveryQuery(icpData: any, sellerData: any): string {
   const parts: string[] = [];
-  if (icpData.industries?.length)
+
+  // Verticals first (most specific targeting)
+  if (icpData?.verticals?.length)
+    parts.push(icpData.verticals.join(", ") + " organizations");
+  else if (icpData?.industries?.length)
     parts.push(icpData.industries.join(", ") + " companies");
-  if (icpData.companySizeMin || icpData.companySizeMax)
+
+  if (icpData?.companySizeMin || icpData?.companySizeMax)
     parts.push(
       `${icpData.companySizeMin || 0}-${icpData.companySizeMax || "?"} employees`
     );
-  if (icpData.fundingStages?.length)
+  if (icpData?.fundingStages?.length)
     parts.push(icpData.fundingStages.join(", "));
-  if (icpData.techStack?.length)
+  if (icpData?.techStack?.length)
     parts.push("using " + icpData.techStack.join(", "));
-  if (icpData.keySignals?.length)
+  if (icpData?.keySignals?.length)
     parts.push("showing " + icpData.keySignals.join(", ") + " signals");
-  if (icpData.geoTargets?.length)
+
+  // Territory from seller profile or ICP
+  if (sellerData?.territory?.description)
+    parts.push("in " + sellerData.territory.description);
+  else if (sellerData?.territory?.states?.length)
+    parts.push("in " + sellerData.territory.states.join(", "));
+  else if (icpData?.geoTargets?.length)
     parts.push("in " + icpData.geoTargets.join(", "));
+
+  // Seller product context
+  if (sellerData?.products?.length)
+    parts.push("that would benefit from " + sellerData.products.join(", "));
+
+  // Buyer titles
+  if (icpData?.buyerTitles?.length)
+    parts.push("with " + icpData.buyerTitles.join(", ") + " as key contacts");
+
+  // Account type
+  if (icpData?.accountType === "new_business")
+    parts.push("(new business opportunities)");
+
   return parts.join(", ");
 }
 
@@ -60,26 +84,38 @@ export default function DiscoverPage() {
     },
   });
 
-  const hasIcp =
-    icpData &&
-    ((icpData.industries?.length > 0) ||
-      (icpData.companySizeMin > 0 || icpData.companySizeMax > 0) ||
-      (icpData.fundingStages?.length > 0) ||
-      (icpData.techStack?.length > 0) ||
-      (icpData.keySignals?.length > 0) ||
-      (icpData.geoTargets?.length > 0));
+  const { data: sellerData, isLoading: sellerLoading } = useQuery({
+    queryKey: ["seller-profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/profile/seller");
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
 
-  // Auto-discover when ICP data loads and user hasn't searched yet
+  const hasContext =
+    (icpData &&
+      ((icpData.industries?.length > 0) ||
+        (icpData.companySizeMin > 0 || icpData.companySizeMax > 0) ||
+        (icpData.fundingStages?.length > 0) ||
+        (icpData.techStack?.length > 0) ||
+        (icpData.keySignals?.length > 0) ||
+        (icpData.verticals?.length > 0) ||
+        (icpData.geoTargets?.length > 0))) ||
+    (sellerData?.products?.length > 0) ||
+    (sellerData?.territory?.states?.length > 0);
+
+  // Auto-discover when profile data loads and user hasn't searched yet
   useEffect(() => {
-    if (autoRanRef.current || icpLoading || !hasIcp || results.length > 0)
+    if (autoRanRef.current || icpLoading || sellerLoading || !hasContext || results.length > 0)
       return;
     autoRanRef.current = true;
-    const description = buildIcpDescription(icpData);
+    const description = buildDiscoveryQuery(icpData, sellerData);
     if (description) {
       setIcp(description);
       runDiscovery(description);
     }
-  }, [icpData, icpLoading, hasIcp, results.length]);
+  }, [icpData, sellerData, icpLoading, sellerLoading, hasContext, results.length]);
 
   async function runDiscovery(query: string) {
     setLoading(true);
@@ -114,8 +150,8 @@ export default function DiscoverPage() {
   }
 
   function fillFromIcp() {
-    if (!icpData) return;
-    const description = buildIcpDescription(icpData);
+    if (!icpData && !sellerData) return;
+    const description = buildDiscoveryQuery(icpData, sellerData);
     setIcp(description);
   }
 
@@ -124,7 +160,7 @@ export default function DiscoverPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Discover Leads</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {hasIcp
+          {hasContext
             ? "Showing companies matching your ICP. Refine your search below."
             : "Describe your ideal customer and let AI find real companies that match."}
         </p>
@@ -132,7 +168,7 @@ export default function DiscoverPage() {
 
       {/* ICP Input */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {hasIcp && !loading && (
+        {hasContext && !loading && (
           <button
             type="button"
             onClick={fillFromIcp}
