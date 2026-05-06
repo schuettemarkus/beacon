@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { anthropic } from "@/lib/anthropic";
 import { fetchWikipediaInfo } from "@/services/data-sources/wikipedia";
 import { getIndustryConfig } from "@/config/industries";
+import { scoreLead } from "@/services/lead-scorer";
+import type { ICPProfile } from "@/services/lead-scorer";
 
 export async function POST(request: Request) {
   const user = await getSession();
@@ -86,16 +88,41 @@ Return ONLY a valid JSON array of up to 8 real companies that match ALL criteria
     return NextResponse.json({ error: "Failed to parse suggestions" }, { status: 500 });
   }
 
+  // Parse ICP for deterministic scoring
+  let parsedIcp: ICPProfile | null = null;
+  if (userData?.icpProfile) {
+    try {
+      parsedIcp = JSON.parse(userData.icpProfile as string);
+    } catch { /* ignore */ }
+  }
+
   // Step 2: Validate top suggestions via Wikipedia (verify they exist)
   const verified = await Promise.all(
     suggestions.slice(0, 8).map(async (s: any) => {
       const wiki = await fetchWikipediaInfo(s.name);
+      let fitScore: number;
+      if (parsedIcp) {
+        const breakdown = scoreLead(
+          {
+            industry: s.industry || "",
+            employees: s.employees || 0,
+            funding: "",
+            techStack: [],
+            hq: wiki?.hq || "",
+            revenueBand: "",
+          },
+          parsedIcp
+        );
+        fitScore = breakdown.total;
+      } else {
+        fitScore = calculateFitScore(s, icp);
+      }
       return {
         ...s,
         verified: !!wiki,
         description: wiki?.description?.slice(0, 200) || null,
         hq: wiki?.hq || null,
-        fitScore: calculateFitScore(s, icp),
+        fitScore,
       };
     })
   );

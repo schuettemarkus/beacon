@@ -134,6 +134,8 @@ async function synthesizeWithClaude(
 
   const systemPrompt = `You are a ${rawData.analystRole || "cybersecurity sales intelligence analyst"}.${sellerInsert}${icpInsert} Given raw data about a company from SEC filings, Wikipedia, vulnerability databases, and news, produce a detailed structured JSON analysis.
 
+CRITICAL: If the raw data is sparse or missing, use your own knowledge about this company. You know about most major companies — their HQ, employee count, industry, revenue, tech stack, etc. Fill in what you know confidently. Do NOT return "Unknown" for well-known companies.
+
 Return ONLY valid JSON matching this TypeScript type (no markdown, no code fences):
 {
   "company": string,
@@ -212,16 +214,27 @@ IMPORTANT RULES:
     response.content[0].type === "text" ? response.content[0].text : "";
 
   try {
-    const cleaned = text
+    let cleaned = text
       .replace(/```json\n?/g, "")
       .replace(/```\n?/g, "")
       .trim();
+
+    // Try to extract JSON object if there's surrounding text
+    if (!cleaned.startsWith("{")) {
+      const jsonStart = cleaned.indexOf("{");
+      const jsonEnd = cleaned.lastIndexOf("}");
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        cleaned = cleaned.slice(jsonStart, jsonEnd + 1);
+      }
+    }
+
     return JSON.parse(cleaned);
-  } catch {
+  } catch (parseError) {
+    console.error("Claude JSON parse failed, raw text:", text.slice(0, 200));
     return {
       company: rawData.query,
       domain: rawData.domain,
-      industry: "Unknown",
+      industry: rawData.wikipedia?.description?.match(/is (?:a|an) ([^.]+)/i)?.[1] || "Unknown",
       hq: rawData.wikipedia?.hq || "Unknown",
       employees: rawData.wikipedia?.employees || 0,
       revenueBand: "Unknown",

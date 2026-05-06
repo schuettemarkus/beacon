@@ -7,9 +7,11 @@ export interface NewsItem {
 
 export async function fetchIndustryNews(company: string, keywords?: string[]): Promise<NewsItem[]> {
   try {
-    const searchTerms = keywords && keywords.length > 0
-      ? `${company} ${keywords.join(" OR ")}`
-      : company;
+    // Search company name first for relevant results, add 1-2 keywords for context
+    const topKeywords = keywords?.slice(0, 2) || [];
+    const searchTerms = topKeywords.length > 0
+      ? `"${company}" ${topKeywords.join(" OR ")}`
+      : `"${company}"`;
     const query = encodeURIComponent(searchTerms);
     const res = await fetch(
       `https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`

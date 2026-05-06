@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { runResearchPipeline } from "@/services/research-pipeline";
+import { scoreLead } from "@/services/lead-scorer";
+import type { ICPProfile } from "@/services/lead-scorer";
 import type { SellerContext } from "@/services/research-pipeline";
 
 export async function POST(request: Request) {
@@ -29,6 +31,27 @@ export async function POST(request: Request) {
 
   try {
     const payload = await runResearchPipeline(query, user.id, user.industry, sellerProfile, icpProfile);
+
+    // Re-score with deterministic scorer if ICP is available (overrides Claude's arbitrary score)
+    if (icpProfile) {
+      try {
+        const breakdown = scoreLead(
+          {
+            industry: payload.industry,
+            employees: payload.employees,
+            funding: payload.funding,
+            techStack: payload.techStack || [],
+            hq: payload.hq,
+            revenueBand: payload.revenueBand,
+            signals: payload.signals,
+          },
+          icpProfile as ICPProfile
+        );
+        payload.fitScore = breakdown.total;
+      } catch {
+        // Keep Claude's score if scorer fails
+      }
+    }
 
     // Save the research run
     const run = await prisma.researchRun.create({
