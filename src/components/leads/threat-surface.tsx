@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldAlert, Bug } from "lucide-react";
+import { ShieldAlert, Bug, ChevronDown, ExternalLink } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Signal {
   id: string;
@@ -9,6 +10,8 @@ interface Signal {
   severity: "critical" | "high" | "medium" | "low";
   title: string;
   body: string;
+  source?: string;
+  sourceUrl?: string;
   capturedAt: string;
 }
 
@@ -44,6 +47,92 @@ function getMaxSeverity(
   return cves.reduce((max, cve) =>
     severityWeight[cve.severity] > severityWeight[max.severity] ? cve : max
   ).severity;
+}
+
+function ExpandableSignal({ signal }: { signal: Signal }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div
+      className={`rounded-md border-l-4 bg-muted/30 transition-shadow hover:shadow-sm cursor-pointer ${
+        signal.severity === "critical"
+          ? "border-l-red-500"
+          : signal.severity === "high"
+            ? "border-l-orange-500"
+            : signal.severity === "medium"
+              ? "border-l-yellow-500"
+              : "border-l-zinc-400"
+      }`}
+      onClick={() => setExpanded(!expanded)}
+    >
+      <div className="flex items-center gap-3 p-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium">{signal.title}</p>
+          {!expanded && (
+            <p className="line-clamp-1 text-[10px] text-muted-foreground">
+              {signal.body}
+            </p>
+          )}
+        </div>
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+            signal.severity === "critical"
+              ? "bg-red-500/10 text-red-600"
+              : signal.severity === "high"
+                ? "bg-orange-500/10 text-orange-600"
+                : signal.severity === "medium"
+                  ? "bg-yellow-500/10 text-yellow-700"
+                  : "bg-zinc-500/10 text-zinc-500"
+          }`}
+        >
+          {signal.severity}
+        </span>
+        <ChevronDown
+          className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+        />
+      </div>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3 space-y-2">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {signal.body}
+              </p>
+              <div className="flex items-center gap-3 pt-1 border-t border-border">
+                <span className="text-[10px] text-muted-foreground">
+                  {new Date(signal.capturedAt).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </span>
+                {signal.source && !signal.sourceUrl && (
+                  <span className="text-[10px] text-muted-foreground">{signal.source}</span>
+                )}
+                {signal.sourceUrl && (
+                  <a
+                    href={signal.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {signal.source || "View Source"}
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 export function ThreatSurface({ techStack, signals }: ThreatSurfaceProps) {
@@ -166,38 +255,7 @@ export function ThreatSurface({ techStack, signals }: ThreatSurfaceProps) {
                   severityWeight[b.severity] - severityWeight[a.severity]
               )
               .map((signal) => (
-                <div
-                  key={signal.id}
-                  className={`flex items-center gap-3 rounded-md border-l-4 bg-muted/30 p-3 ${
-                    signal.severity === "critical"
-                      ? "border-l-red-500"
-                      : signal.severity === "high"
-                        ? "border-l-orange-500"
-                        : signal.severity === "medium"
-                          ? "border-l-yellow-500"
-                          : "border-l-zinc-400"
-                  }`}
-                >
-                  <div className="flex-1">
-                    <p className="text-xs font-medium">{signal.title}</p>
-                    <p className="line-clamp-1 text-[10px] text-muted-foreground">
-                      {signal.body}
-                    </p>
-                  </div>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                      signal.severity === "critical"
-                        ? "bg-red-500/10 text-red-600"
-                        : signal.severity === "high"
-                          ? "bg-orange-500/10 text-orange-600"
-                          : signal.severity === "medium"
-                            ? "bg-yellow-500/10 text-yellow-700"
-                            : "bg-zinc-500/10 text-zinc-500"
-                    }`}
-                  >
-                    {signal.severity}
-                  </span>
-                </div>
+                <ExpandableSignal key={signal.id} signal={signal} />
               ))}
           </div>
         </div>
