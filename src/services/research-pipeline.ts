@@ -151,10 +151,10 @@ Return ONLY valid JSON matching this TypeScript type (no markdown, no code fence
   "signals": [{
     "type": ${signalTypesStr || '"regulatory"|"peer_breach"|"industry_breach"|"tech_vuln"|"hiring"|"funding"|"ma"|"compliance_audit"|"news"'},
     "severity": "low"|"medium"|"high"|"critical",
-    "source": string (the source name, e.g. "CISA KEV", "NVD", "SEC EDGAR", "Google News", news outlet name),
-    "sourceUrl": string (MUST be a real, working URL. Use actual URLs from the raw news data provided. For CVEs use https://nvd.nist.gov/vuln/detail/{CVE-ID}. For CISA use https://www.cisa.gov/known-exploited-vulnerabilities-catalog. For SEC use https://www.sec.gov/cgi-bin/browse-edgar. For news, use the actual article link from the raw data — do NOT fabricate URLs),
-    "title": string (concise headline — include dates, dollar amounts, or specific details when available),
-    "body": string (4-6 sentences with specific details: what happened, when, the impact, who was affected, and why this matters for a ${industryDisplay} sale. Include specific numbers, dates, and names. Do NOT be vague — this is the AM's primary intelligence source)
+    "source": string (the news outlet or source name — e.g. "Reuters", "SC Magazine", "CISA KEV", "NVD", "SEC EDGAR"),
+    "sourceUrl": string (copy the EXACT link/URL from the raw news data for news-based signals. For CVE signals use https://nvd.nist.gov/vuln/detail/{CVE-ID}. For CISA use https://www.cisa.gov/known-exploited-vulnerabilities-catalog. For SEC use the SEC EDGAR URL. NEVER make up a URL — if no real URL exists, use "https://${rawData.domain}"),
+    "title": string (specific headline: include the company name, dates, dollar amounts, or affected systems. Example: "Nevada DMV hit by 28-day ransomware attack in August 2025" not "Recent cyber incident"),
+    "body": string (5-8 sentences of rich detail: What specifically happened? When exactly (month/year)? What was the financial or operational impact? Who was affected (employees, citizens, patients)? What systems or data were compromised? What was the response? Why does this create a selling opportunity for the AM's products? Be a journalist, not a summarizer — every sentence should add new information)
   }],
   "contacts": [] (ALWAYS return an empty array — contacts are sourced from verified databases, not generated),
   "regulatoryProfile": [{
@@ -230,7 +230,60 @@ IMPORTANT RULES:
       }
     }
 
-    return JSON.parse(cleaned);
+    const parsed = JSON.parse(cleaned);
+
+    // Post-process signals: validate URLs against real data sources
+    if (parsed.signals?.length) {
+      // Build lookup of real URLs from raw data
+      const realNewsUrls = (rawData.news || []).map((n: any) => ({
+        title: (n.title || "").toLowerCase(),
+        link: n.link,
+        source: n.source,
+      }));
+      const realCveUrls = (rawData.cisaVulnerabilities || []).concat(rawData.nvdVulnerabilities || [])
+        .filter((v: any) => v.cveId || v.id)
+        .map((v: any) => ({
+          id: (v.cveId || v.id || "").toLowerCase(),
+          link: `https://nvd.nist.gov/vuln/detail/${v.cveId || v.id}`,
+        }));
+
+      parsed.signals = parsed.signals.map((signal: any) => {
+        const titleLower = (signal.title || "").toLowerCase();
+        const bodyLower = (signal.body || "").toLowerCase();
+
+        // Try to match to a real news URL by title similarity
+        const newsMatch = realNewsUrls.find((n: any) =>
+          titleLower.includes(n.title.slice(0, 30)) ||
+          n.title.includes(titleLower.slice(0, 30))
+        );
+        if (newsMatch?.link) {
+          signal.sourceUrl = newsMatch.link;
+          signal.source = newsMatch.source || signal.source;
+        }
+
+        // Try to match CVE signals to real NVD URLs
+        if (signal.type === "tech_vuln") {
+          const cveMatch = realCveUrls.find((c: any) =>
+            titleLower.includes(c.id) || bodyLower.includes(c.id)
+          );
+          if (cveMatch) signal.sourceUrl = cveMatch.link;
+        }
+
+        // Validate URL: must start with http
+        if (signal.sourceUrl && !signal.sourceUrl.startsWith("http")) {
+          signal.sourceUrl = `https://${rawData.domain}`;
+        }
+
+        // If no source URL at all, use company domain
+        if (!signal.sourceUrl) {
+          signal.sourceUrl = `https://${rawData.domain}`;
+        }
+
+        return signal;
+      });
+    }
+
+    return parsed;
   } catch (parseError) {
     console.error("Claude JSON parse failed, raw text:", text.slice(0, 200));
     return {

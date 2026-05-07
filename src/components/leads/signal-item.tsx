@@ -124,9 +124,32 @@ export function SignalItem({ signal }: { signal: Signal }) {
           </div>
 
           {!expanded && (
-            <p className="line-clamp-1 text-xs text-muted-foreground mt-1">
+            <p className="line-clamp-2 text-xs text-muted-foreground mt-1">
               {signal.body}
             </p>
+          )}
+
+          {/* Source link always visible in collapsed state */}
+          {!expanded && signal.sourceUrl && (
+            <div className="flex items-center gap-2 mt-1.5">
+              <a
+                href={signal.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {signal.source || "View Source"}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+              <span className="text-[10px] text-muted-foreground">
+                {new Date(signal.capturedAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
           )}
 
           <AnimatePresence>
@@ -138,11 +161,11 @@ export function SignalItem({ signal }: { signal: Signal }) {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                <div className="text-sm text-foreground/80 mt-3 leading-relaxed whitespace-pre-line">
                   {signal.body}
-                </p>
+                </div>
 
-                <div className="flex items-center gap-3 mt-3 pt-2 border-t border-border">
+                <div className="flex items-center flex-wrap gap-3 mt-3 pt-3 border-t border-border">
                   <span className="text-xs text-muted-foreground">
                     {new Date(signal.capturedAt).toLocaleDateString("en-US", {
                       month: "short",
@@ -150,8 +173,8 @@ export function SignalItem({ signal }: { signal: Signal }) {
                       year: "numeric",
                     })}
                   </span>
-                  {signal.source && !signal.sourceUrl && (
-                    <span className="text-xs text-muted-foreground">
+                  {signal.source && (
+                    <span className="text-xs text-muted-foreground font-medium">
                       {signal.source}
                     </span>
                   )}
@@ -160,10 +183,10 @@ export function SignalItem({ signal }: { signal: Signal }) {
                       href={signal.sourceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {signal.source || "View Source"}
+                      Read Full Article
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   )}

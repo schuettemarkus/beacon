@@ -68,9 +68,21 @@ function ExpandableSignal({ signal }: { signal: Signal }) {
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium">{signal.title}</p>
           {!expanded && (
-            <p className="line-clamp-1 text-[10px] text-muted-foreground">
+            <p className="line-clamp-2 text-[10px] text-muted-foreground">
               {signal.body}
             </p>
+          )}
+          {!expanded && signal.sourceUrl && (
+            <a
+              href={signal.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline font-medium mt-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {signal.source || "View Source"}
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
           )}
         </div>
         <span
@@ -100,10 +112,10 @@ function ExpandableSignal({ signal }: { signal: Signal }) {
             className="overflow-hidden"
           >
             <div className="px-3 pb-3 space-y-2">
-              <p className="text-xs text-muted-foreground leading-relaxed">
+              <div className="text-xs text-foreground/80 leading-relaxed whitespace-pre-line">
                 {signal.body}
-              </p>
-              <div className="flex items-center gap-3 pt-1 border-t border-border">
+              </div>
+              <div className="flex items-center flex-wrap gap-3 pt-2 border-t border-border">
                 <span className="text-[10px] text-muted-foreground">
                   {new Date(signal.capturedAt).toLocaleDateString("en-US", {
                     month: "short",
@@ -111,18 +123,18 @@ function ExpandableSignal({ signal }: { signal: Signal }) {
                     year: "numeric",
                   })}
                 </span>
-                {signal.source && !signal.sourceUrl && (
-                  <span className="text-[10px] text-muted-foreground">{signal.source}</span>
+                {signal.source && (
+                  <span className="text-[10px] text-muted-foreground font-medium">{signal.source}</span>
                 )}
                 {signal.sourceUrl && (
                   <a
                     href={signal.sourceUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
+                    className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {signal.source || "View Source"}
+                    Read Full Article
                     <ExternalLink className="h-2.5 w-2.5" />
                   </a>
                 )}
