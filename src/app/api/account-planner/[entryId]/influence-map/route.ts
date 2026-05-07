@@ -18,15 +18,14 @@ export async function POST(
 
   const { entryId } = await params;
 
-  const entry = await (prisma as any).accountPlanEntry.findFirst({
+  const entry = await (prisma as any).accountPlanEntry.findUnique({
     where: {
       id: entryId,
-      accountPlan: { userId: user.id },
     },
     include: { accountPlan: true },
   });
 
-  if (!entry)
+  if (!entry || entry.accountPlan?.userId !== user.id)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const contacts = await findContactsAtDomain(entry.domain);

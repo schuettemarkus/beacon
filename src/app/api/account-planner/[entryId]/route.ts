@@ -12,16 +12,16 @@ export async function GET(
 
   const { entryId } = await params;
 
-  const entry = await (prisma as any).accountPlanEntry.findFirst({
-    where: {
-      id: entryId,
-      accountPlan: { userId: user.id },
-    },
-    include: { accountPlan: { select: { name: true, territory: true } } },
+  const entry = await (prisma as any).accountPlanEntry.findUnique({
+    where: { id: entryId },
+    include: { accountPlan: { select: { id: true, userId: true, name: true, territory: true } } },
   });
 
-  if (!entry)
+  if (!entry || entry.accountPlan?.userId !== user.id)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  return NextResponse.json(entry);
+  return NextResponse.json({
+    ...entry,
+    accountPlan: { name: entry.accountPlan.name, territory: entry.accountPlan.territory },
+  });
 }

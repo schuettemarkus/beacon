@@ -151,10 +151,10 @@ Return ONLY valid JSON matching this TypeScript type (no markdown, no code fence
   "signals": [{
     "type": ${signalTypesStr || '"regulatory"|"peer_breach"|"industry_breach"|"tech_vuln"|"hiring"|"funding"|"ma"|"compliance_audit"|"news"'},
     "severity": "low"|"medium"|"high"|"critical",
-    "source": string (the source name, e.g. "CISA KEV", "NVD", "SEC EDGAR"),
-    "sourceUrl": string (URL to the actual source — use real URLs like https://www.cisa.gov/known-exploited-vulnerabilities-catalog, https://nvd.nist.gov/vuln/detail/CVE-XXXX-XXXX, https://www.sec.gov/cgi-bin/browse-edgar, or news article URLs from the raw data),
-    "title": string,
-    "body": string (2-3 sentences explaining the signal's sales relevance)
+    "source": string (the source name, e.g. "CISA KEV", "NVD", "SEC EDGAR", "Google News", news outlet name),
+    "sourceUrl": string (MUST be a real, working URL. Use actual URLs from the raw news data provided. For CVEs use https://nvd.nist.gov/vuln/detail/{CVE-ID}. For CISA use https://www.cisa.gov/known-exploited-vulnerabilities-catalog. For SEC use https://www.sec.gov/cgi-bin/browse-edgar. For news, use the actual article link from the raw data — do NOT fabricate URLs),
+    "title": string (concise headline — include dates, dollar amounts, or specific details when available),
+    "body": string (4-6 sentences with specific details: what happened, when, the impact, who was affected, and why this matters for a ${industryDisplay} sale. Include specific numbers, dates, and names. Do NOT be vague — this is the AM's primary intelligence source)
   }],
   "contacts": [] (ALWAYS return an empty array — contacts are sourced from verified databases, not generated),
   "regulatoryProfile": [{
@@ -183,14 +183,16 @@ IMPORTANT RULES:
 - For CISA KEV signals, use https://www.cisa.gov/known-exploited-vulnerabilities-catalog
 - For SEC signals, use https://www.sec.gov/cgi-bin/browse-edgar?company={company}&CIK=&type=10-K&dateb=&owner=include&count=10&search_text=&action=getcompany
 - For news signals, use the actual article URLs from the raw data
-- Generate 5-8 high-quality signals that a ${industryDisplay} salesperson would find actionable
+- Generate 8-12 detailed signals that a ${industryDisplay} salesperson would find actionable
+- Each signal body should be 4-6 sentences with specific facts, dates, and impact — not generic summaries
+- ONLY use real URLs from the raw data for sourceUrl. If no real URL exists for a signal, use the company's domain URL as a fallback
 - Include at least 3 regulatory items relevant to the company's industry
 - The peer comparison should include real, well-known companies
 - Be thorough but factual. Mark inferences clearly.`;
 
   const response = await anthropic.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 5000,
+    max_tokens: 6000,
     system: [
       {
         type: "text",
