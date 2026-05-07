@@ -8,20 +8,14 @@ import {
   Mail,
   Clock,
   Archive,
-  ArchiveX,
   Globe,
   MapPin,
   Users,
   DollarSign,
   Landmark,
   Cpu,
-  Activity,
   ArrowLeft,
-  ArrowRight,
-  Eye,
-  MessageSquare,
   Zap,
-  FileText,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -34,11 +28,9 @@ import { SignalItem } from "@/components/leads/signal-item";
 import { EmailPreview } from "@/components/leads/email-preview";
 import { ThreatSurface } from "@/components/leads/threat-surface";
 import { useLeadActions } from "@/hooks/use-lead-actions";
-import { AddNoteForm } from "@/components/leads/add-note-form";
 import { FitScoreBreakdown } from "@/components/leads/fit-score-breakdown";
 import { MeetingPrepBrief } from "@/components/leads/meeting-prep-brief";
 import { CompetitiveIntel } from "@/components/leads/competitive-intel";
-import { SequenceTab } from "@/components/leads/sequence-tab";
 import { useIndustry } from "@/hooks/use-industry";
 
 function fitScoreColor(score: number) {
@@ -140,26 +132,14 @@ export default function LeadDetailPage() {
 
       {/* Tabs */}
       <Tabs defaultValue={defaultTab}>
-        <div className="overflow-x-auto -mx-4 px-4">
-          <TabsList>
-            <TabsTrigger value="overview" className="flex-shrink-0 whitespace-nowrap">Overview</TabsTrigger>
-            <TabsTrigger value="threat-surface" className="flex-shrink-0 whitespace-nowrap">
-              {config.useVulnSources ? "Threat Surface" : "Risk Signals"}
-            </TabsTrigger>
-            <TabsTrigger value="people" className="flex-shrink-0 whitespace-nowrap">People</TabsTrigger>
-            <TabsTrigger value="signals" className="flex-shrink-0 whitespace-nowrap">Signals</TabsTrigger>
-            <TabsTrigger value="emails" className="flex-shrink-0 whitespace-nowrap">Emails</TabsTrigger>
-            <TabsTrigger value="activity" className="flex-shrink-0 whitespace-nowrap">Activity</TabsTrigger>
-            <TabsTrigger value="meeting-prep" className="flex-shrink-0 whitespace-nowrap">
-              <FileText className="mr-1 h-3.5 w-3.5" />
-              Meeting Prep
-            </TabsTrigger>
-            <TabsTrigger value="competitive" className="flex-shrink-0 whitespace-nowrap">
-              Competitive
-            </TabsTrigger>
-            <TabsTrigger value="sequence" className="flex-shrink-0 whitespace-nowrap">
-              Sequence
-            </TabsTrigger>
+        <div className="overflow-x-auto -mx-4 px-4 border-b border-border">
+          <TabsList variant="line" className="gap-0">
+            <TabsTrigger value="overview" className="flex-shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-semibold">Overview</TabsTrigger>
+            <TabsTrigger value="signals" className="flex-shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-semibold">Signals</TabsTrigger>
+            <TabsTrigger value="people" className="flex-shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-semibold">People</TabsTrigger>
+            <TabsTrigger value="emails" className="flex-shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-semibold">Emails</TabsTrigger>
+            <TabsTrigger value="meeting-prep" className="flex-shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-semibold">Meeting Prep</TabsTrigger>
+            <TabsTrigger value="competitive" className="flex-shrink-0 whitespace-nowrap px-4 py-2.5 text-sm font-semibold">Intelligence</TabsTrigger>
           </TabsList>
         </div>
 
@@ -210,33 +190,6 @@ export default function LeadDetailPage() {
           </div>
         </TabsContent>
 
-        {/* Threat Surface / Risk Signals */}
-        <TabsContent value="threat-surface">
-          <div className="pt-4">
-            {config.useVulnSources ? (
-              <ThreatSurface
-                techStack={lead.techStack || []}
-                signals={lead.signals || []}
-              />
-            ) : (
-              <div className="space-y-3">
-                {lead.signals
-                  ?.sort((a: any, b: any) => {
-                    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-                    return (severityOrder[a.severity as keyof typeof severityOrder] ?? 3) -
-                           (severityOrder[b.severity as keyof typeof severityOrder] ?? 3);
-                  })
-                  .map((signal: any) => (
-                    <SignalItem key={signal.id} signal={signal} />
-                  ))}
-                {(!lead.signals || lead.signals.length === 0) && (
-                  <p className="text-sm text-muted-foreground">No risk signals yet.</p>
-                )}
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
         {/* People */}
         <TabsContent value="people">
           <div className="grid grid-cols-1 gap-4 pt-4 lg:grid-cols-2">
@@ -255,18 +208,38 @@ export default function LeadDetailPage() {
           </div>
         </TabsContent>
 
-        {/* Signals */}
+        {/* Signals (combined Threat Surface + Signals) */}
         <TabsContent value="signals">
-          <div className="space-y-3 pt-4">
-            {lead.signals
-              ?.sort(
-                (a: any, b: any) =>
-                  new Date(b.capturedAt).getTime() -
-                  new Date(a.capturedAt).getTime()
-              )
-              .map((signal: any) => (
-                <SignalItem key={signal.id} signal={signal} />
-              ))}
+          <div className="space-y-6 pt-4">
+            {config.useVulnSources && lead.techStack?.length > 0 && (
+              <ThreatSurface
+                techStack={lead.techStack}
+                signals={lead.signals || []}
+              />
+            )}
+            {!config.useVulnSources && (
+              <div className="space-y-3">
+                {lead.signals
+                  ?.sort((a: any, b: any) => {
+                    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+                    return (severityOrder[a.severity as keyof typeof severityOrder] ?? 3) -
+                           (severityOrder[b.severity as keyof typeof severityOrder] ?? 3);
+                  })
+                  .map((signal: any) => (
+                    <SignalItem key={signal.id} signal={signal} />
+                  ))}
+              </div>
+            )}
+            {config.useVulnSources && lead.signals?.filter((s: any) => s.type === "news" || s.type === "regulatory" || s.type === "hiring" || s.type === "funding" || s.type === "ma").length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold">All Signals</h3>
+                {lead.signals
+                  .sort((a: any, b: any) => new Date(b.capturedAt).getTime() - new Date(a.capturedAt).getTime())
+                  .map((signal: any) => (
+                    <SignalItem key={signal.id} signal={signal} />
+                  ))}
+              </div>
+            )}
             {(!lead.signals || lead.signals.length === 0) && (
               <p className="text-sm text-muted-foreground">No signals yet.</p>
             )}
@@ -319,80 +292,6 @@ export default function LeadDetailPage() {
           </div>
         </TabsContent>
 
-        {/* Activity */}
-        <TabsContent value="activity">
-          <div className="space-y-4 pt-4">
-            <AddNoteForm leadId={id} />
-            {lead.activities && lead.activities.length > 0 ? (
-              <div className="relative space-y-4">
-                {lead.activities
-                  .sort(
-                    (a: any, b: any) =>
-                      new Date(b.createdAt).getTime() -
-                      new Date(a.createdAt).getTime()
-                  )
-                  .map((activity: any) => {
-                    const iconMap: Record<string, any> = {
-                      snoozed: Clock,
-                      archived: Archive,
-                      unarchived: ArchiveX,
-                      email_sent: Mail,
-                      email_regenerated: Zap,
-                      pipeline_moved: ArrowRight,
-                      viewed: Eye,
-                      note: MessageSquare,
-                    };
-                    const IconComponent = iconMap[activity.kind] || Activity;
-                    return (
-                      <div
-                        key={activity.id}
-                        className="flex items-start gap-3 rounded-md border p-3"
-                      >
-                        <div className="rounded-md bg-muted p-2">
-                          <IconComponent className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <p className="text-sm font-medium capitalize">
-                            {activity.kind.replace(/_/g, " ")}
-                          </p>
-                          {activity.payload &&
-                            Object.keys(activity.payload).length > 0 && (
-                              <p className="text-xs text-muted-foreground">
-                                {Object.entries(activity.payload)
-                                  .map(
-                                    ([key, val]) =>
-                                      `${key}: ${val}`
-                                  )
-                                  .join(" · ")}
-                              </p>
-                            )}
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(activity.createdAt).toLocaleDateString(
-                              undefined,
-                              {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              }
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No activity yet.</p>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Sequence */}
-        <TabsContent value="sequence">
-          <SequenceTab leadId={id} />
-        </TabsContent>
       </Tabs>
     </motion.div>
   );

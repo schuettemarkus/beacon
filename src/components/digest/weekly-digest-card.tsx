@@ -5,21 +5,29 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, AlertTriangle, TrendingUp, X, RefreshCw } from "lucide-react";
+import { Calendar, AlertTriangle, TrendingUp, X, RefreshCw, Zap, CheckCircle } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface DigestData {
   id: string;
-  topLeadsAdvice: { company: string; reason: string }[];
-  coldAlerts: { company: string; suggestedAction: string }[];
+  topLeadsAdvice: { company: string; reason: string; nextAction?: string; urgency?: string }[];
+  coldAlerts: { company: string; suggestedAction: string; daysInactive?: number }[];
   pipelineSummary: string;
-  topLeads: { id: string; company: string; fitScore: number }[];
+  weeklyPriorities?: string[];
+  signalHighlights?: { company: string; signal: string; opportunity: string }[];
+  topLeads: { id: string; company: string; fitScore: number; dealValue?: string }[];
   coldLeads: { id: string; company: string }[];
   newSignalsCount: number;
   pipelineMovementCount: number;
   createdAt: string;
   readAt: string | null;
 }
+
+const urgencyColors = {
+  today: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+  this_week: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+  schedule: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+};
 
 export function WeeklyDigestCard({ onLeadClick }: { onLeadClick?: (id: string) => void }) {
   const queryClient = useQueryClient();
@@ -34,7 +42,7 @@ export function WeeklyDigestCard({ onLeadClick }: { onLeadClick?: (id: string) =
       if (data.digest && !data.digest.readAt) return data.digest;
       return null;
     },
-    staleTime: 30 * 1000, // Refetch after 30s if leads changed
+    staleTime: 30 * 1000,
   });
 
   async function handleDismiss() {
@@ -72,14 +80,35 @@ export function WeeklyDigestCard({ onLeadClick }: { onLeadClick?: (id: string) =
                 </Button>
               </div>
             </div>
-            <p className="text-sm text-muted-foreground">{digest.pipelineSummary}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{digest.pipelineSummary}</p>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-5">
+            {/* Weekly Priorities */}
+            {digest.weeklyPriorities && digest.weeklyPriorities.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  This Week&apos;s Priorities
+                </h4>
+                <div className="space-y-1.5">
+                  {digest.weeklyPriorities.map((p, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                        {i + 1}
+                      </span>
+                      <span>{p}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Top Leads */}
             {digest.topLeadsAdvice.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium flex items-center gap-1.5 mb-2">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
                   <TrendingUp className="h-4 w-4 text-green-600" />
-                  Focus This Week
+                  Focus Accounts
                 </h4>
                 <div className="space-y-2">
                   {digest.topLeadsAdvice.map((item, i) => {
@@ -87,16 +116,27 @@ export function WeeklyDigestCard({ onLeadClick }: { onLeadClick?: (id: string) =
                     return (
                       <div
                         key={item.company}
-                        className="flex items-start gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded p-1.5 -mx-1.5"
+                        className="rounded-lg border bg-background p-3 cursor-pointer hover:shadow-sm transition-shadow"
                         onClick={() => lead && onLeadClick?.(lead.id)}
                       >
-                        <Badge variant="secondary" className="shrink-0">
-                          {lead?.fitScore ?? "--"}
-                        </Badge>
-                        <div>
-                          <span className="font-medium">{item.company}</span>
-                          <span className="text-muted-foreground ml-1.5">{item.reason}</span>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-sm">{item.company}</span>
+                          {lead?.fitScore && (
+                            <Badge variant="secondary" className="text-[10px]">{lead.fitScore}</Badge>
+                          )}
+                          {lead?.dealValue && (
+                            <Badge variant="outline" className="text-[10px] text-green-700 border-green-300">{lead.dealValue}</Badge>
+                          )}
+                          {item.urgency && (
+                            <Badge className={`text-[10px] ${urgencyColors[item.urgency as keyof typeof urgencyColors] || urgencyColors.schedule}`}>
+                              {item.urgency === "today" ? "Act Today" : item.urgency === "this_week" ? "This Week" : "Schedule"}
+                            </Badge>
+                          )}
                         </div>
+                        <p className="text-xs text-muted-foreground">{item.reason}</p>
+                        {item.nextAction && (
+                          <p className="text-xs font-medium text-primary mt-1">{item.nextAction}</p>
+                        )}
                       </div>
                     );
                   })}
@@ -104,9 +144,29 @@ export function WeeklyDigestCard({ onLeadClick }: { onLeadClick?: (id: string) =
               </div>
             )}
 
+            {/* Signal Highlights */}
+            {digest.signalHighlights && digest.signalHighlights.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
+                  <Zap className="h-4 w-4 text-amber-500" />
+                  Signal Opportunities
+                </h4>
+                <div className="space-y-2">
+                  {digest.signalHighlights.map((sh, i) => (
+                    <div key={i} className="text-sm">
+                      <span className="font-medium">{sh.company}</span>
+                      <span className="text-muted-foreground"> — {sh.signal}</span>
+                      <p className="text-xs text-primary mt-0.5">{sh.opportunity}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Cold Alerts */}
             {digest.coldAlerts.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium flex items-center gap-1.5 mb-2">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5 mb-2">
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
                   Going Cold
                 </h4>
@@ -114,7 +174,10 @@ export function WeeklyDigestCard({ onLeadClick }: { onLeadClick?: (id: string) =
                   {digest.coldAlerts.map((item) => (
                     <div key={item.company} className="text-sm">
                       <span className="font-medium">{item.company}</span>
-                      <span className="text-muted-foreground ml-1.5">— {item.suggestedAction}</span>
+                      {item.daysInactive && (
+                        <span className="text-muted-foreground text-xs ml-1">({item.daysInactive}d inactive)</span>
+                      )}
+                      <span className="text-muted-foreground"> — {item.suggestedAction}</span>
                     </div>
                   ))}
                 </div>
