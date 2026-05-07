@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { FileText, Copy, Check, Loader2 } from "lucide-react";
 
@@ -23,6 +23,14 @@ export function MeetingPrepBrief({ leadId }: { leadId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const autoRan = useRef(false);
+
+  useEffect(() => {
+    if (!autoRan.current && !brief && !loading) {
+      autoRan.current = true;
+      generate();
+    }
+  }, []);
 
   async function generate() {
     setLoading(true);
@@ -79,14 +87,10 @@ export function MeetingPrepBrief({ leadId }: { leadId: string }) {
   if (!brief && !loading) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-16">
-        <FileText className="h-12 w-12 text-muted-foreground/50" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          Generate an AI-powered brief to prepare for your next meeting.
+          Preparing meeting brief...
         </p>
-        <Button onClick={generate} className="gap-2">
-          <FileText className="h-4 w-4" />
-          Generate Meeting Brief
-        </Button>
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Swords, Copy, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,14 @@ export function CompetitiveIntel({ leadId }: { leadId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const autoRan = useRef(false);
+
+  useEffect(() => {
+    if (!autoRan.current && !data && !loading) {
+      autoRan.current = true;
+      generate();
+    }
+  }, []);
 
   async function generate() {
     setLoading(true);
@@ -56,14 +64,10 @@ export function CompetitiveIntel({ leadId }: { leadId: string }) {
   if (!data && !loading) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-16">
-        <Swords className="h-10 w-10 text-muted-foreground" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          Generate competitive intelligence based on this lead&apos;s tech stack and industry.
+          Analyzing competitive landscape...
         </p>
-        <Button onClick={generate} disabled={loading}>
-          Generate Intel
-        </Button>
-        {error && <p className="text-sm text-red-500">{error}</p>}
       </div>
     );
   }

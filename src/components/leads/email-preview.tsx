@@ -35,20 +35,25 @@ interface EmailPreviewProps {
 
 const toneLabels = ["Formal", "Professional", "Conversational", "Casual"];
 
-export function EmailPreview({ email, leadId, contactEmail }: EmailPreviewProps) {
+export function EmailPreview({ email: initialEmail, leadId, contactEmail }: EmailPreviewProps) {
+  const [email, setEmail] = useState(initialEmail);
   const [expanded, setExpanded] = useState(false);
   const [toneIndex, setToneIndex] = useState(1);
   const queryClient = useQueryClient();
 
+  // Sync with parent data when it refreshes
+  useState(() => { setEmail(initialEmail); });
+
   const regenerateMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/leads/${leadId}/emails/${email.id}/regenerate`, {
+      const res = await fetch(`/api/leads/${leadId}/emails/${initialEmail.id}/regenerate`, {
         method: "POST",
       });
       if (!res.ok) throw new Error("Failed to regenerate");
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      setEmail({ ...email, ...updated });
       queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
       toast.success("Email regenerated");
     },
