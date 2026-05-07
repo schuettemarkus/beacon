@@ -110,7 +110,7 @@ export default function InboxPage() {
     !onboardingDismissed;
 
   return (
-    <div className="relative mx-auto w-full max-w-2xl space-y-6 px-4 py-6">
+    <div className="relative w-full space-y-6 py-6">
       <div className="flex items-center gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
           Leads

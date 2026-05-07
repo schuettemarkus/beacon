@@ -156,7 +156,7 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 py-6 px-4">
+    <div className="w-full space-y-8 py-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Discover Leads</h1>
         <p className="mt-1 text-sm text-muted-foreground">
