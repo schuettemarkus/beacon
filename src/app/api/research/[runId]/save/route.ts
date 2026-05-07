@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { generateEmailVariants } from "@/services/email-generator";
 import { scoreLead } from "@/services/lead-scorer";
 import { estimateDealValue } from "@/services/deal-value-estimator";
-import { enrichContact, findContactsAtDomain } from "@/services/enrichment-service";
+import { findContactsAtDomain } from "@/services/enrichment-service";
 import { verifyContacts } from "@/services/contact-verifier";
 import type { ICPProfile } from "@/services/lead-scorer";
 import type { CompanyResearchPayload } from "@/services/company-research";
@@ -92,7 +92,7 @@ export async function POST(
     console.error("Deal value estimation error:", e);
   }
 
-  // Create contacts: Hunter domain search → verify names/titles → enrich
+  // Create contacts from verified sources ONLY (Hunter.io)
   let domainContacts: Awaited<ReturnType<typeof findContactsAtDomain>> = [];
   try {
     domainContacts = await findContactsAtDomain(payload.domain);
@@ -100,49 +100,24 @@ export async function POST(
     // Non-fatal
   }
 
-  // Verify and cross-reference all contacts (Claude + Hunter)
-  const verifiedContacts = await verifyContacts(
-    payload.company,
-    payload.domain,
-    payload.contacts || [],
-    domainContacts
+  const verifiedContacts = verifyContacts(
+    payload.company, payload.domain, [], domainContacts
   );
 
   for (const vc of verifiedContacts) {
-    const contact = await prisma.contact.create({
+    await prisma.contact.create({
       data: {
         leadId: lead.id,
         name: vc.name,
         title: vc.title,
         email: vc.email || `contact@${payload.domain}`,
-        phone: null,
-        linkedin: null,
+        phone: vc.phone || null,
+        linkedin: vc.linkedin || null,
         decisionMakerScore: vc.confidence === "high" ? 80 : vc.confidence === "medium" ? 60 : 40,
-        enrichedAt: vc.source === "hunter" || vc.source === "both" ? new Date() : null,
-        enrichmentSource: vc.verified ? `Verified (${vc.source})` : vc.source,
+        enrichedAt: new Date(),
+        enrichmentSource: `Verified (${vc.source})`,
       },
     });
-
-    // Enrich contacts without real emails
-    if (!vc.email || vc.email.includes("contact@")) {
-      try {
-        const enriched = await enrichContact(vc.name, payload.domain);
-        if (enriched?.email) {
-          await prisma.contact.update({
-            where: { id: contact.id },
-            data: {
-              email: enriched.email,
-              phone: enriched.phone || null,
-              linkedin: enriched.linkedin || null,
-              enrichedAt: new Date(),
-              enrichmentSource: `${enriched.source}${vc.verified ? " (verified)" : ""}`,
-            },
-          });
-        }
-      } catch {
-        // Non-fatal
-      }
-    }
   }
 
   // Create signals

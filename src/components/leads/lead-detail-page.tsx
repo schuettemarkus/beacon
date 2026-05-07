@@ -244,7 +244,13 @@ export default function LeadDetailPage() {
               <ContactCard key={contact.id} contact={contact} leadId={id} />
             ))}
             {(!lead.contacts || lead.contacts.length === 0) && (
-              <p className="text-sm text-muted-foreground">No contacts found.</p>
+              <div className="col-span-full text-center py-8 space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">No verified contacts available</p>
+                <p className="text-xs text-muted-foreground">
+                  Contact data is sourced exclusively from verified databases (Hunter.io).
+                  No contacts were found for this domain.
+                </p>
+              </div>
             )}
           </div>
         </TabsContent>
