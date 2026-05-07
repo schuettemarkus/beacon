@@ -232,7 +232,7 @@ export default function LeadDetailPage() {
             )}
             {config.useVulnSources && lead.signals?.filter((s: any) => s.type === "news" || s.type === "regulatory" || s.type === "hiring" || s.type === "funding" || s.type === "ma").length > 0 && (
               <div className="space-y-3">
-                <h3 className="text-sm font-semibold">All Signals</h3>
+                <h3 className="text-sm font-semibold">News, Regulatory & Business Signals</h3>
                 {lead.signals
                   .sort((a: any, b: any) => new Date(b.capturedAt).getTime() - new Date(a.capturedAt).getTime())
                   .map((signal: any) => (

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { FileText, Copy, Check, Loader2 } from "lucide-react";
+import { Copy, Check, Loader2, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,36 +20,20 @@ interface MeetingBrief {
 }
 
 export function MeetingPrepBrief({ leadId }: { leadId: string }) {
-  const [brief, setBrief] = useState<MeetingBrief | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const autoRan = useRef(false);
 
-  useEffect(() => {
-    if (!autoRan.current && !brief && !loading) {
-      autoRan.current = true;
-      generate();
-    }
-  }, []);
-
-  async function generate() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/leads/${leadId}/meeting-prep`, {
-        method: "POST",
-      });
+  const { data: brief, isLoading: loading, error, refetch } = useQuery<MeetingBrief>({
+    queryKey: ["meeting-prep", leadId],
+    queryFn: async () => {
+      const res = await fetch(`/api/leads/${leadId}/meeting-prep`, { method: "POST" });
       if (!res.ok) throw new Error("Failed to generate brief");
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      setBrief(data);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+      return data;
+    },
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    retry: false,
+  });
 
   function copyToClipboard() {
     if (!brief) return;
@@ -84,18 +69,6 @@ export function MeetingPrepBrief({ leadId }: { leadId: string }) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  if (!brief && !loading) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          Preparing meeting brief...
-        </p>
-        {error && <p className="text-sm text-destructive">{error}</p>}
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-16">
@@ -103,6 +76,15 @@ export function MeetingPrepBrief({ leadId }: { leadId: string }) {
         <p className="text-sm text-muted-foreground">
           Preparing your meeting brief...
         </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16">
+        <p className="text-sm text-destructive">{(error as Error).message}</p>
+        <Button size="sm" variant="outline" onClick={() => refetch()}>Retry</Button>
       </div>
     );
   }
@@ -123,8 +105,8 @@ export function MeetingPrepBrief({ leadId }: { leadId: string }) {
             {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
             {copied ? "Copied" : "Copy"}
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5" onClick={generate}>
-            <FileText className="h-3.5 w-3.5" />
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => refetch()}>
+            <RefreshCw className="h-3.5 w-3.5" />
             Regenerate
           </Button>
         </div>

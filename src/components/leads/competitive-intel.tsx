@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Copy, Check, Loader2 } from "lucide-react";
+import { Copy, Check, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,35 +22,18 @@ interface CompetitiveIntelData {
 }
 
 export function CompetitiveIntel({ leadId }: { leadId: string }) {
-  const [data, setData] = useState<CompetitiveIntelData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const autoRan = useRef(false);
 
-  useEffect(() => {
-    if (!autoRan.current && !data && !loading) {
-      autoRan.current = true;
-      generate();
-    }
-  }, []);
-
-  async function generate() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/leads/${leadId}/competitive-intel`, {
-        method: "POST",
-      });
+  const { data, isLoading: loading, error, refetch } = useQuery<CompetitiveIntelData>({
+    queryKey: ["competitive-intel", leadId],
+    queryFn: async () => {
+      const res = await fetch(`/api/leads/${leadId}/competitive-intel`, { method: "POST" });
       if (!res.ok) throw new Error("Failed to generate intel");
-      const json = await res.json();
-      setData(json);
-    } catch (e: any) {
-      setError(e.message || "Something went wrong");
-    } finally {
-      setLoading(false);
-    }
-  }
+      return res.json();
+    },
+    staleTime: 10 * 60 * 1000,
+    retry: false,
+  });
 
   function copyTalkTracks() {
     if (!data) return;
@@ -61,22 +45,20 @@ export function CompetitiveIntel({ leadId }: { leadId: string }) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  if (!data && !loading) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          Analyzing competitive landscape...
-        </p>
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-16">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">Analyzing competitive landscape...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16">
+        <p className="text-sm text-destructive">{(error as Error).message}</p>
+        <Button size="sm" variant="outline" onClick={() => refetch()}>Retry</Button>
       </div>
     );
   }
@@ -102,7 +84,8 @@ export function CompetitiveIntel({ leadId }: { leadId: string }) {
             {copied ? <Check className="h-3.5 w-3.5 mr-1.5" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
             {copied ? "Copied" : "Copy Talk Tracks"}
           </Button>
-          <Button size="sm" variant="ghost" onClick={generate}>
+          <Button size="sm" variant="ghost" onClick={() => refetch()}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
             Regenerate
           </Button>
         </div>

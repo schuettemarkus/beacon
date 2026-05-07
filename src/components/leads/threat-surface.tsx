@@ -246,7 +246,7 @@ export function ThreatSurface({ techStack, signals }: ThreatSurfaceProps) {
         .sort((a, b) => severityWeight[b.severity] - severityWeight[a.severity])
         .length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium">Other Threat Signals</h3>
+          <h3 className="text-sm font-medium">Industry & Business Signals</h3>
           <div className="space-y-2">
             {signals
               .filter((s) => s.type !== "tech_vuln")
